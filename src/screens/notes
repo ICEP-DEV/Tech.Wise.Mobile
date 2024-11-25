@@ -1,0 +1,283 @@
+const SCREEN_HEIGHT = Dimensions.get('window').height;
+const SCREEN_WIDTH = Dimensions.get('window').width;
+
+-----------------------------------------------bottom sheet back up------------------------
+i want to make my text inputs to function well, when i enter an address it must AUTO complete my locations using google maps
+import React, { useContext, useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { StyleSheet, Image, View, Text, Dimensions, TouchableOpacity } from 'react-native';
+import MapComponent from '../components/MapComponent';
+import { colors, parameters } from '../global/styles';
+import { rideData } from '../global/data';
+import { Avatar, Icon } from 'react-native-elements';
+import { DestinationContext, OriginContext } from '../contexts/contexts';
+import BottomSheet, { BottomSheetFlatList } from '@gorhom/bottom-sheet';
+import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
+import { GOOGLE_MAPS_APIKEY } from "@env";
+
+const SCREEN_HEIGHT = Dimensions.get('window').height;
+const SCREEN_WIDTH = Dimensions.get('window').width;
+
+export default function RequestScreen({ navigation, route }) {
+  const { origin, dispatchOrigin } = useContext(OriginContext);
+  const { destination, dispatchDestination } = useContext(DestinationContext);
+  const [setDestination] = useState(false)
+  const textInput1 = useRef(4)
+  const textInput2 = useRef(5)
+
+  const [userOrigin, setUserOrigin] = useState({
+    latitude: origin?.latitude || 0,
+    longitude: origin?.longitude || 0,
+  });
+  const [userDestination, setUserDestination] = useState({
+    latitude: destination?.latitude || 0,
+    longitude: destination?.longitude || 0,
+  });
+
+  const [isSheetOpen, setIsSheetOpen] = useState(true); // To track BottomSheet state
+  const index = route.params?.state ?? 0;
+  const snapPoints1 = useMemo(() => ['70%'], []);
+  const BottomSheet1 = useRef(null);
+
+  const handleSheetChange1 = useCallback(
+    (index) => {
+      if (index === -1) setIsSheetOpen(false); // If BottomSheet is fully closed
+    },
+    []
+  );
+
+  const handleArrowPress = () => {
+    BottomSheet1.current?.expand(); // Reopen BottomSheet
+    setIsSheetOpen(true);
+  };
+
+  useEffect(() => {
+    if (origin?.latitude && origin?.longitude) {
+      setUserOrigin({
+        latitude: origin.latitude,
+        longitude: origin.longitude,
+      });
+    }
+    if (destination?.latitude && destination?.longitude) {
+      setUserDestination({
+        latitude: destination.latitude,
+        longitude: destination.longitude,
+      });
+    }
+
+    // Check if both Origin and Destination are set
+    if (origin?.latitude && origin?.longitude && destination?.latitude && destination?.longitude) {
+      setIsSheetOpen(false); // Close the BottomSheet
+    } else {
+      setIsSheetOpen(true); // Open the BottomSheet
+    }
+  }, [origin, destination]);
+
+
+  const renderFlatListItems = useCallback(
+    ({ item }) => (
+      <View>
+        <View style={styles.view10}>
+          <View style={styles.view11}>
+            <Icon type="material-community" name="clock-time-four" color={colors.white} size={18} />
+          </View>
+          <View>
+            <Text style={{ fontSize: 15, color: colors.grey1 }}>{item.street}</Text>
+            <Text style={{ color: colors.grey4 }}>{item.area}</Text>
+          </View>
+        </View>
+      </View>
+    ),
+    []
+  );
+
+  return (
+    <>
+      <View style={styles.container}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <View style={styles.view1}>
+            <Icon type="material-community" name="arrow-left" size={32} color={colors.grey1} />
+          </View>
+        </TouchableOpacity>
+        <View style={styles.view2}>
+          <TouchableOpacity>
+            <View style={styles.view3}>
+              <Avatar rounded size={30} source={require('../../assets/blankProfilePic.jpg')} />
+              <Text style={{ marginLeft: 5 }}>For Someone</Text>
+              <Icon type="material-community" name="chevron-down" size={26} color={colors.grey1} />
+            </View>
+          </TouchableOpacity>
+          <View style={styles.view4}>
+            <View>
+              <Image style={styles.image1} source={require('../../assets/transit.png')} />
+            </View>
+            <View>
+              <TouchableOpacity >
+                <View style={styles.view6}>
+                  {/* <Text style={styles.text1}>From where</Text> */}
+                  <GooglePlacesAutocomplete
+                    nearbyPlacesAPI='GooglePlacesSearch'
+                    placeholder="From..."
+                    listViewDisplayed="auto"
+                    debounce={400}
+                    currentLocation={true}
+                    ref={textInput1}
+                    minLength={2}
+                    enablePoweredByContainer={false}
+                    fetchDetails={true}
+                    autoFocus={true}
+                    styles={autoComplete}
+                    query={{
+                      key: GOOGLE_MAPS_APIKEY,
+                      language: "en"
+                    }}
+
+                    onPress={(data, details = null) => {
+                      dispatchOrigin({
+                        type: "ADD_ORIGIN", payload: {
+                          latitude: details.geometry.location.lat,
+                          longitude: details.geometry.location.lng,
+                          address: details.formatted_address,
+                          name: details.name
+                        }
+                      })
+
+                      setDestination(true)
+                    }}
+
+                  />
+                </View>
+              </TouchableOpacity>
+              <View style={styles.view7}>
+                <TouchableOpacity>
+                  <View style={styles.view5}>
+                    {/* <Text style={styles.text1}>Where to</Text> */}
+                    <GooglePlacesAutocomplete
+                      nearbyPlacesAPI='GooglePlacesSearch'
+                      placeholder="Going to..."
+                      listViewDisplayed="auto"
+                      debounce={400}
+                      currentLocation={true}
+                      ref={textInput2}
+                      minLength={2}
+                      enablePoweredByContainer={false}
+                      fetchDetails={true}
+                      autoFocus={true}
+                      styles={autoComplete}
+                      query={{
+                        key: GOOGLE_MAPS_APIKEY,
+                        language: "en"
+                      }}
+
+                      onPress={(data, details = null) => {
+                        dispatchDestination({
+                          type: "ADD_DESTINATION", payload: {
+                            latitude: details.geometry.location.lat,
+                            longitude: details.geometry.location.lng,
+                            address: details.formatted_address,
+                            name: details.name
+                          }
+                        })
+
+                        // setDestination(true)
+                      }}
+
+                    />
+                  </View>
+                </TouchableOpacity>
+                <View style={styles.view8}>
+                  <Icon type="material-community" name="plus-thinck" size={25} color={colors.black} />
+                </View>
+              </View>
+            </View>
+          </View>
+        </View>
+        <MapComponent userOrigin={userOrigin} userDestination={userDestination} />
+
+        <BottomSheet
+          ref={BottomSheet1}
+          index={index}
+          snapPoints={snapPoints1}
+          onChange={handleSheetChange1}
+          enablePanDownToClose={true}
+        >
+          <BottomSheetFlatList
+            keyboardShouldPersistTaps="always"
+            data={rideData}
+            keyExtractor={(item) => item.id}
+            renderItem={renderFlatListItems}
+            contentContainerStyle={styles.contentContainer}
+            ListHeaderComponent={
+              <View style={styles.view10}>
+                <View style={styles.view11}>
+                  <Icon type="material-community" name="star" color={colors.white} size={20} />
+                </View>
+                <View>
+                  <Text style={styles.text9}>Saved Places</Text>
+                </View>
+              </View>
+            }
+            ListFooterComponent={
+              <View>
+                <View style={styles.view10}>
+                  <View style={styles.view11}>
+                    <Icon type="material-community" name="map-marker" color={colors.white} size={20} />
+                  </View>
+                  <View>
+                    <Text style={styles.text9}>Set location on map</Text>
+                  </View>
+                </View>
+                <View style={styles.view10}>
+                  <View style={styles.view11}>
+                    <Icon type="material-community" name="skip-next" color={colors.white} size={20} />
+                  </View>
+                  <View>
+                    <Text style={styles.text9}>Enter destination later</Text>
+                  </View>
+                </View>
+              </View>
+            }
+          />
+        </BottomSheet>
+        {/* Upward Arrow Icon */}
+        {!isSheetOpen && (
+          <TouchableOpacity style={styles.arrowButton} onPress={handleArrowPress}>
+            <Icon type="material-community" name="arrow-up" size={30} color="white" />
+          </TouchableOpacity>
+        )}
+      </View>
+
+    </>
+  );
+}
+
+
+const autoComplete = {
+
+  textInput: {
+    backgroundColor: colors.grey6,
+    height: 50,
+    borderRadius: 5,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    fontSize: 15,
+    flex: 1,
+    borderWidth: 1,
+    marginHorizontal: 15,
+  },
+  container: {
+    paddingTop: 20,
+    flex: 1,
+    backgroundColor: colors.white
+  },
+
+  textInputContainer: {
+    flexDirection: 'row',
+  },
+
+}
+const styles = StyleSheet.create({
+  container1: {
+    flex: 1,
+    paddingTop: parameters.statusBarHeight,
+
+  },

@@ -1,41 +1,48 @@
 {
   "expo": {
-    "name": "nthome_app",
-    "slug": "nthome_app",
+    "name": "Click_Block_Tech_UI",
+    "slug": "Click_Block_Tech_UI",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
-    "scheme": "myapp",
-    "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "icon": "./assets/splash.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#00C8FF"
+    },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "budleIdentiier":"com.uber-clone",
+      "config":{
+        "googleMapsApiKey":"AIzaSyCW_3yyD7H0125SOsP-vABHG6BrSm47j-w"
+      },
+      "newArchEnabled": true
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/splash.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "newArchEnabled": true
     },
     "web": {
-      "bundler": "metro",
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/favicon.png"
+    },
+    "package":"com.uberClone",
+    "config":{
+      "googleMaps":{
+        "apiKey":"KEY"
+      },
+      "permissions":["ACESS_COURSE_LOCATION","ACCESS_FINE_LOCATION","FOREGROUND_SERVICE"]
     },
     "plugins": [
-      "expo-router",
       [
-        "expo-splash-screen",
+        "expo-Location",
         {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
+          "locationAlwaysAndWhenInUsePermission": "Allow location app to use your location."
         }
       ]
-    ],
-    "experiments": {
-      "typedRoutes": true
-    }
+    ]
   }
 }
