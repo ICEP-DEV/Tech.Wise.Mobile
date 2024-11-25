@@ -7,6 +7,7 @@ import { Icon } from 'react-native-elements'; // Assuming you're using this for 
 import HomeScreen from '../screens/HomeScreen';
 import RequestScreen from '../screens/RequestScreen';
 import DestinationScreen from '../screens/DestinationScreen'; // Make sure this is the correct import
+import RecentPlacesBottomSheet from '../components/RecentPlacesBottomSheet';
 
 const Stack = createNativeStackNavigator(); // Renaming to `Stack` for better clarity
 const Drawer = createDrawerNavigator(); // Create DrawerNavigator
@@ -94,11 +95,20 @@ export default function RootNavigator() {
   return (
     <NavigationContainer>
       <Stack.Navigator>
-     <Stack.Screen
+        <Stack.Screen
           name="DrawerNavigator" // Use this name for the DrawerNavigator
           component={DrawerNavigator} // Use DrawerNavigator here
           options={{ headerShown: false }} // Disable header for the entire drawer
         />
+          <Stack.Screen
+            name="RecentPlacesBottomSheet"
+            component={RecentPlacesBottomSheet}
+            options={{
+              headerShown: false,
+              presentation: "transparentModal",
+              animation: "slide_from_bottom",
+            }}
+          />
         <Stack.Screen
           name="RequestScreen"
           component={RequestScreen}

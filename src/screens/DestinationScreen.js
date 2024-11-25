@@ -1,118 +1,64 @@
-import React, { useContext, useRef, useState } from 'react'
-import { StyleSheet, Text, View, Dimensions, TouchableOpacity, } from 'react-native';
-import { Avatar, Icon } from 'react-native-elements';
-import { colors, parameters } from '../global/styles'
-import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
-import { GOOGLE_MAPS_APIKEY } from "@env";
+import React, { useContext, useEffect, useState } from 'react';
+import { StyleSheet, Text, View, Dimensions } from 'react-native';
+import { Icon } from 'react-native-elements';
+import { colors, parameters } from '../global/styles';
 import { DestinationContext, OriginContext } from '../contexts/contexts';
+import MapComponent from '../components/MapComponent';
 
-// const SCREEN_HEIGHT = Dimensions.get('window').height;
-// const SCREEN_WIDTH = Dimensions.get('window').width;
+const SCREEN_HEIGHT = Dimensions.get('window').height;
+const SCREEN_WIDTH = Dimensions.get('window').width;
 
-const DestinationScreen = ({navigation}) => {
-  const {dispatchOrigin} = useContext(OriginContext)
-  const {dispatchDestination} = useContext(DestinationContext)
+const DestinationScreen = ({ navigation, route }) => {
+  const { origin } = useContext(OriginContext);
+  const { destination } = useContext(DestinationContext);
 
-  const textInput1 = useRef(4)
-  const textInput2 = useRef(5)
+  const [userOrigin, setUserOrigin] = useState({
+    latitude: origin?.latitude || 0,
+    longitude: origin?.longitude || 0,
+  });
 
-  const[destination,setDestination] = useState(false)
+  const [userDestination, setUserDestination] = useState({
+    latitude: destination?.latitude || 0,
+    longitude: destination?.longitude || 0,
+  });
+
+  // Update local states when origin or destination context changes
+  useEffect(() => {
+    if (origin?.latitude && origin?.longitude) {
+      setUserOrigin({ latitude: origin.latitude, longitude: origin.longitude });
+    }
+
+    if (destination?.latitude && destination?.longitude) {
+      setUserDestination({
+        latitude: destination.latitude,
+        longitude: destination.longitude,
+      });
+    }
+  }, [origin, destination]);
+
+  // Debug logs for tracking updates
+  useEffect(() => {
+    console.log("Origin Context Updated:", origin);
+    console.log("Destination Context Updated:", destination);
+  }, [origin, destination]);
+
   return (
-    <>
-      <View style={styles.view2}>
-        <View style={styles.view1}>
-          <Icon
-            type='material-community'
-            name="arrow-left"
-            size={32}
-            color={colors.grey1} 
-            onPress={()=>navigation.goBack()}/>
-        </View>
-        <TouchableOpacity>
-          <View style={{top:25, alignItems:"center"}}>
-            <View style={styles.view3}>
-              <Avatar
-                rounded
-                avatarStyle={{}}
-                size={30}
-                source={require('../../assets/blankProfilePic.jpg')}
-
-              />
-              <Text style={{ marginLeft: 5 }}>For Someone</Text>
-              <Icon
-                type='material-community'
-                name="chevron-down"
-                size={26}
-                color={colors.grey1} />
-            </View>
-          </View>
-        </TouchableOpacity>
+    <View style={styles.view2}>
+      <View style={styles.view1}>
+        <Icon
+          type="material-community"
+          name="arrow-left"
+          size={32}
+          color={colors.grey1}
+          onPress={() => navigation.goBack()}
+        />
       </View>
-      {destination === false &&
-            <GooglePlacesAutocomplete 
-                nearbyPlacesAPI = 'GooglePlacesSearch'
-                placeholder ="From..."
-                listViewDisplayed = "auto"
-                debounce ={400}
-                currentLocation ={true}
-                ref ={textInput1}
-                minLength ={2}
-                enablePoweredByContainer = {false}
-                fetchDetails ={true}
-                autoFocus ={true}
-                styles = {autoComplete}
-                query ={{
-                    key:GOOGLE_MAPS_APIKEY,
-                    language:"en"
-                }}
-
-                onPress= {(data,details = null)=>{
-                    dispatchOrigin({type:"ADD_ORIGIN",payload:{
-                        latitude:details.geometry.location.lat,
-                        longitude:details.geometry.location.lng,
-                        address:details.formatted_address,
-                        name:details.name
-                    }})
-
-                    setDestination(true)
-                }}
-
-            />
-            }
-            {destination === true &&
-            <GooglePlacesAutocomplete 
-                nearbyPlacesAPI = 'GooglePlacesSearch'
-                placeholder ="Going to..."
-                listViewDisplayed = "auto"
-                debounce ={400}
-                currentLocation ={true}
-                ref ={textInput2}
-                minLength ={2}
-                enablePoweredByContainer = {false}
-                fetchDetails ={true}
-                autoFocus ={true}
-                styles = {autoComplete}
-                query ={{
-                    key:GOOGLE_MAPS_APIKEY,
-                    language:"en"
-                }}
-
-                onPress= {(data,details = null)=>{
-                    dispatchDestination({type:"ADD_DESTINATION",payload:{
-                        latitude:details.geometry.location.lat,
-                        longitude:details.geometry.location.lng,
-                        address:details.formatted_address,
-                        name:details.name
-                    }})
-
-                    navigation.navigate("RequestScreen",{state:0})
-                }}
-
-            />
-            }
-    </>
-  )
-}
+      <Text>Destination</Text>
+      {/* Pass userOrigin and userDestination to MapComponent */}
+      <MapComponent userOrigin={userOrigin} userDestination={userDestination} />
+    </View>
+  );
+};
 
 export default DestinationScreen;
 

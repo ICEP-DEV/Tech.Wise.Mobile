@@ -8,12 +8,13 @@ export const filterData = [
 
 
 export const rideData = [
-        { street: "32 Olivia Rd", area: "Klipfontein 83-Ir,Boksburg", id: "0" },
-        { street: "Hughes Industrial Park", area: "Hughes,Boksburg", id: "1" },
-        { street: "32 Olivia Road", area: " East Rand,Ekurhuleni,Gauteng,1459", id: "2" },
-        { street: "Total Boksburg", area: "35 Atlas Rd,Anderbolt,Boksburg", id: "3" },
-        { street: "179 8th Ave", area: "Bezuidenhout Valley,Johannesburg", id: "4" },
-];
+        { street: "Table Mountain", area: "Cape Town, Western Cape", id: "0", destination: {"latitude": -33.9628, "longitude": 18.4097} },
+        { street: "Kruger National Park", area: "Mpumalanga", id: "1", destination: {"latitude": -24.0167, "longitude": 31.5892} },
+        { street: "Robben Island", area: "Cape Town, Western Cape", id: "2", destination: {"latitude": -33.8055, "longitude": 18.3663} },
+        { street: "Blyde River Canyon", area: "Mpumalanga", id: "3", destination: {"latitude": -24.6269, "longitude": 30.8533} },
+        { street: "Soweto", area: "Johannesburg, Gauteng", id: "4", destination: {"latitude": -26.2677, "longitude": 27.8890} },
+    ];
+    
 
 export const carTypeData = [
         {

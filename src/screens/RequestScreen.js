@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect, useRef, useMemo } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import { StyleSheet, View, Text, Dimensions, TouchableOpacity } from 'react-native';
 import MapComponent from '../components/MapComponent';
 import { colors } from '../global/styles';
@@ -6,10 +6,10 @@ import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplet
 import { GOOGLE_MAPS_APIKEY } from "@env";
 import { DestinationContext, OriginContext } from '../contexts/contexts';
 import * as Location from 'expo-location';
-import { SavedPlacesBottomSheet } from '../components/SavedPlacesBottomSheet';
+import { Icon } from 'react-native-elements';
+import { rideData } from '../global/data';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
-const SCREEN_WIDTH = Dimensions.get('window').width;
 
 export default function RequestScreen({ navigation }) {
   const { origin, dispatchOrigin } = useContext(OriginContext);
@@ -19,10 +19,10 @@ export default function RequestScreen({ navigation }) {
     latitude: origin?.latitude || 0,
     longitude: origin?.longitude || 0,
   });
-  const [userDestination, setUserDestination] = useState({
-    latitude: destination?.latitude || 0,
-    longitude: destination?.longitude || 0,
-  });
+  // const [userDestination, setUserDestination] = useState({
+  //   latitude: destination?.latitude || 0,
+  //   longitude: destination?.longitude || 0,
+  // });
 
   const getCurrentLocation = async () => {
     try {
@@ -39,54 +39,74 @@ export default function RequestScreen({ navigation }) {
       if (coords) {
         const { latitude, longitude } = coords;
         setUserOrigin({ latitude, longitude });
-        dispatchOrigin({ type: 'SET_ORIGIN', payload: { latitude, longitude } });
+        dispatchOrigin({ type: 'ADD_ORIGIN', payload: { latitude, longitude } });
       }
     } catch (error) {
       console.error("Error fetching location:", error);
     }
   };
 
-  const handleDestinationSelect = (data, details) => {
-    const { lat, lng } = details.geometry.location;
-    setUserDestination({ latitude: lat, longitude: lng });
-    dispatchDestination({ type: 'SET_DESTINATION', payload: { latitude: lat, longitude: lng } });
-  };
+  // const handleDestinationSelect = (data, details) => {
+  //   const { lat, lng } = details.geometry.location;
+  //   setUserDestination({ latitude: lat, longitude: lng });
+  //   dispatchDestination({ type: 'ADD_DESTINATION', payload: { latitude: lat, longitude: lng } });
+  //   // navigation.navigate("RequestScreen",{state:0})
+  // };
 
   useEffect(() => {
     getCurrentLocation();
   }, []);
- 
 
   return (
-    <View style={styles.container}>
-      <TouchableOpacity onPress={() => navigation.goBack()}>
-        <View style={styles.view1}>
-          <Text>Back</Text>
-        </View>
-      </TouchableOpacity>
-      <View style={[styles.inputContainer, autoCompleteStyles.inputStackContainer]}>
-        {/* WHERE TO */}
-        <GooglePlacesAutocomplete
-          placeholder="Where to"
-          listViewDisplayed="auto"
-          debounce={400}
-          minLength={2}
-          enablePoweredByContainer={false}
-          fetchDetails={true}
-          autoFocus={true}
-          onPress={handleDestinationSelect}
-          query={{
-            key: GOOGLE_MAPS_APIKEY,
-            language: "en",
-          }}
-          styles={autoCompleteStyles}
-        />
-      </View>
+    <>
+      <View style={styles.container}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <View style={styles.view1}>
+            <Text>Back</Text>
+          </View>
+        </TouchableOpacity>
+        <View style={[styles.inputContainer, autoCompleteStyles.inputStackContainer]}>
+          <GooglePlacesAutocomplete
+            placeholder="Where to"
+            listViewDisplayed="auto"
+            debounce={400}
+            minLength={2}
+            enablePoweredByContainer={false}
+            fetchDetails={true}
+            autoFocus={true}
+            onPress={(data, details = null) => {
+              if (details) {
+                dispatchDestination({
+                  type: "ADD_DESTINATION",
+                  payload: {
+                    latitude: details.geometry.location.lat,
+                    longitude: details.geometry.location.lng,
+                    address: details.formatted_address,
+                    name: details.name,
+                  },
+                });
+              } else {
+                console.error("Google Places did not return 'details'");
+              }
+            }}
+            query={{
+              key: GOOGLE_MAPS_APIKEY,
+              language: "en",
+            }}
+            styles={autoCompleteStyles}
+          />
 
-      <MapComponent userOrigin={userOrigin} userDestination={userDestination} />
-    
-    
-    </View>
+        </View>
+
+        <MapComponent userOrigin={userOrigin} userDestination={destination} />
+        <TouchableOpacity
+          style={styles.arrowButton}
+          onPress={() => navigation.navigate('RecentPlacesBottomSheet')}
+        >
+          <Icon type="material-community" name="arrow-up" size={30} color="white" />
+        </TouchableOpacity>
+      </View>
+    </>
   );
 }
 
@@ -100,6 +120,23 @@ const styles = StyleSheet.create({
     left: 10,
     right: 10,
     zIndex: 10,
+  },
+  arrowButton: {
+    backgroundColor: '#6200ee', // Deep purple button
+    borderRadius: 30,          // Circle shape
+    width: 60,                 // Diameter
+    height: 60,                // Diameter
+    justifyContent: 'center',  // Center icon vertically
+    alignItems: 'center',      // Center icon horizontally
+    position: 'absolute',      // Absolute positioning
+    bottom: 20,                // Distance from the bottom
+    right: 20,                 // Distance from the right
+    shadowColor: '#000',       // Shadow color
+    shadowOffset: { width: 0, height: 4 }, // Shadow offset
+    shadowOpacity: 0.3,        // Shadow transparency
+    shadowRadius: 4,           // Shadow radius
+    elevation: 5,
+    zIndex: 1,              // Elevation for Android shadow
   },
 });
 
