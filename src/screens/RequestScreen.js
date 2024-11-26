@@ -46,6 +46,31 @@ export default function RequestScreen({ navigation }) {
     }
   };
 
+  useEffect(() => {
+    if (
+      userOrigin?.latitude !== 0 &&
+      userOrigin?.longitude !== 0 &&
+      destination &&
+      destination.latitude !== null &&
+      destination.longitude !== null
+    ) {
+      navigation.navigate('CarListingBottomSheet');
+    }
+  }, [userOrigin, destination]);
+ 
+  const handleNavigation = () => {
+    if (  destination &&
+      destination.latitude !== null &&
+      destination.longitude !== null) {
+      navigation.navigate('CarListingBottomSheet'); // Navigate to CarListing if destination is entered
+    } else {
+      navigation.navigate('RecentPlacesBottomSheet'); // Navigate to RecentPlaces if destination is not entered
+    }
+  };
+  
+  
+  
+   
   // const handleDestinationSelect = (data, details) => {
   //   const { lat, lng } = details.geometry.location;
   //   setUserDestination({ latitude: lat, longitude: lng });
@@ -98,13 +123,15 @@ export default function RequestScreen({ navigation }) {
 
         </View>
 
-        <MapComponent userOrigin={userOrigin} userDestination={destination} />
+
         <TouchableOpacity
-          style={styles.arrowButton}
-          onPress={() => navigation.navigate('RecentPlacesBottomSheet')}
-        >
-          <Icon type="material-community" name="arrow-up" size={30} color="white" />
-        </TouchableOpacity>
+  style={styles.arrowButton}
+  onPress={() => handleNavigation()}
+>
+  <Icon type="material-community" name="arrow-up" size={30} color="white" />
+</TouchableOpacity>
+   
+        <MapComponent userOrigin={userOrigin} userDestination={destination} />
       </View>
     </>
   );

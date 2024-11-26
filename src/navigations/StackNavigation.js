@@ -4,7 +4,8 @@ import HomeScreen from '../screens/HomeScreen'
 import RequestScreen from '../screens/RequestScreen';
 import DestinationScreen from '../screens/DestinationScreen';
 import RecentPlacesBottomSheet from '../components/RecentPlacesBottomSheet';
-
+import CarListingBottomSheet from '../components/CarListingBottomSheet';
+import DriverDetailsBottomSheet from '../components/DriverDetailsBottomSheet';
 
 const Home = createNativeStackNavigator();
 
@@ -29,6 +30,27 @@ export function HomeStack() {
             <Home.Screen
                 name="RecentPlacesBottomSheet"
                 component={RecentPlacesBottomSheet}
+                options={{
+                    headerShown: false
+                }}
+            />
+            <Home.Screen
+                name="CarListingBottomSheet"
+                component={CarListingBottomSheet}
+                options={{
+                    headerShown: false
+                }}
+            />
+            <Home.Screen
+                name="CarListingBottomSheet"
+                component={CarListingBottomSheet}
+                options={{
+                    headerShown: false
+                }}
+            />
+            <Home.Screen
+                name="DriverDetailsBottomSheet "
+                component={DriverDetailsBottomSheet}
                 options={{
                     headerShown: false
                 }}

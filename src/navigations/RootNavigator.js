@@ -8,6 +8,9 @@ import HomeScreen from '../screens/HomeScreen';
 import RequestScreen from '../screens/RequestScreen';
 import DestinationScreen from '../screens/DestinationScreen'; // Make sure this is the correct import
 import RecentPlacesBottomSheet from '../components/RecentPlacesBottomSheet';
+import CarListingBottomSheet from '../components/CarListingBottomSheet';
+import DriverDetailsBottomSheet  from '../components/DriverDetailsBottomSheet';
+
 
 const Stack = createNativeStackNavigator(); // Renaming to `Stack` for better clarity
 const Drawer = createDrawerNavigator(); // Create DrawerNavigator
@@ -100,15 +103,24 @@ export default function RootNavigator() {
           component={DrawerNavigator} // Use DrawerNavigator here
           options={{ headerShown: false }} // Disable header for the entire drawer
         />
-          <Stack.Screen
-            name="RecentPlacesBottomSheet"
-            component={RecentPlacesBottomSheet}
-            options={{
-              headerShown: false,
-              presentation: "transparentModal",
-              animation: "slide_from_bottom",
-            }}
-          />
+        <Stack.Screen
+          name="RecentPlacesBottomSheet"
+          component={RecentPlacesBottomSheet}
+          options={{
+            headerShown: false,
+            presentation: "transparentModal",
+            animation: "slide_from_bottom",
+          }}
+        />
+        <Stack.Screen
+          name="CarListingBottomSheet"
+          component={CarListingBottomSheet}
+          options={{
+            headerShown: false,
+            presentation: "transparentModal",
+            animation: "slide_from_bottom",
+          }}
+        />
         <Stack.Screen
           name="RequestScreen"
           component={RequestScreen}
@@ -118,6 +130,15 @@ export default function RootNavigator() {
           name="DestinationScreen"
           component={DestinationScreen}
           options={{ headerShown: false }}
+        />
+         <Stack.Screen
+          name="DriverDetailsBottomSheet"
+          component={DriverDetailsBottomSheet}
+             options={{
+            headerShown: false,
+            presentation: "transparentModal",
+            animation: "slide_from_bottom",
+          }}
         />
       </Stack.Navigator>
     </NavigationContainer>

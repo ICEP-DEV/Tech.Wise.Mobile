@@ -8,39 +8,145 @@ export const filterData = [
 
 
 export const rideData = [
-        { street: "Table Mountain", area: "Cape Town, Western Cape", id: "0", destination: {"latitude": -33.9628, "longitude": 18.4097} },
-        { street: "Kruger National Park", area: "Mpumalanga", id: "1", destination: {"latitude": -24.0167, "longitude": 31.5892} },
-        { street: "Robben Island", area: "Cape Town, Western Cape", id: "2", destination: {"latitude": -33.8055, "longitude": 18.3663} },
-        { street: "Blyde River Canyon", area: "Mpumalanga", id: "3", destination: {"latitude": -24.6269, "longitude": 30.8533} },
-        { street: "Soweto", area: "Johannesburg, Gauteng", id: "4", destination: {"latitude": -26.2677, "longitude": 27.8890} },
-    ];
-    
+        { street: "Table Mountain", area: "Cape Town, Western Cape", id: "0", destination: { "latitude": -33.9628, "longitude": 18.4097 } },
+        { street: "Kruger National Park", area: "Mpumalanga", id: "1", destination: { "latitude": -24.0167, "longitude": 31.5892 } },
+        { street: "Robben Island", area: "Cape Town, Western Cape", id: "2", destination: { "latitude": -33.8055, "longitude": 18.3663 } },
+        { street: "Blyde River Canyon", area: "Mpumalanga", id: "3", destination: { "latitude": -24.6269, "longitude": 30.8533 } },
+        { street: "Soweto", area: "Johannesburg, Gauteng", id: "4", destination: { "latitude": -26.2677, "longitude": 27.8890 } },
+];
+
 
 export const carTypeData = [
         {
                 title: "Popular",
                 data: [
-                        { name: "Uber Go", group: 2, price: 7, image: require('../../assets/uberGo.png'), note: "Affordable.compact rides", promotion: 5, time: "20:19", id: "0" },
-                        { name: "UberX", group: 3, price: 5.5, image: require('../../assets/uberX.png'), note: "Affordable everyday trips", promotion: 0, time: "20:20", id: "1" },
-                        { name: "Connect", group: 0, price: 12.6, image: require('../../assets/uberConnect.png'), note: "Send and receive packages", promotion: 10, time: "20:33", id: "2" }
+                        {
+                                name: "Uber Go",
+                                group: 2,
+                                price: 30,
+                                image: require('../../assets/uberGo.png'),
+                                note: "Affordable compact rides",
+                                promotion: 5,
+                                time: "20:19",
+                                id: "0",
+                                driver: {
+                                        name: "John Dube",
+                                        gender: "Male",
+                                        rating: 4.8,
+                                        licensePlate: "CA 123-456",
+                                        location: "Johannesburg",
+                                        profileImage: "../../assets/blankProfilePic.jpg"
+                                }
+                        },
+                        {
+                                name: "UberX",
+                                group: 3,
+                                price: 25,
+                                image: require('../../assets/uberX.png'),
+                                note: "Affordable everyday trips",
+                                promotion: 0,
+                                time: "20:20",
+                                id: "1",
+                                driver: {
+                                        name: "Thandiwe Ndlovu",
+                                        gender: "Female",
+                                        rating: 4.9,
+                                        licensePlate: "JHB 789-012",
+                                        location: "Pretoria",
+                                        profileImage: "../../assets/blankProfilePic.jpg"
+
+,                                }
+                        },
+                        {
+                                name: "Connect",
+                                group: 0,
+                                price: 50,
+                                image: require('../../assets/uberConnect.png'),
+                                note: "Send and receive packages",
+                                promotion: 10,
+                                time: "20:33",
+                                id: "2",
+                                driver: {
+                                        name: "Musa Khumalo",
+                                        gender: "Male",
+                                        rating: 4.7,
+                                        licensePlate: "KZN 345-678",
+                                        location: "Durban",
+                                        profileImage: "../../assets/blankProfilePic.jpg"
+
+,                                }
+                        }
                 ]
         },
 
         {
                 title: "Premium",
                 data: [
-                        { name: "Black", group: 3, price: 17.4, image: require('../../assets/uberBlack.png'), note: "Premium trips in luxury cars", promotion: 0, time: "20:31", id: "3" },
-                        { name: "Van", group: 6, price: 22.3, image: require('../../assets/uberVan.png'), note: "Rides for groups up to 6", promotion: 12, time: "20:31", id: "4" },
+                        {
+                                name: "Black",
+                                group: 3,
+                                price: 17.4,
+                                image: require('../../assets/uberBlack.png'),
+                                note: "Premium trips in luxury cars",
+                                promotion: 0,
+                                time: "20:31",
+                                id: "3",
+                                driver: {
+                                        name: "Sipho Mthembu",
+                                        gender: "Male",
+                                        rating: 5.0,
+                                        licensePlate: "CPT 101-202",
+                                        location: "Cape Town",
+                                        profileImage: "../../assets/blankProfilePic.jpg"
+
+                                }
+                        },
+                        {
+                                name: "Van",
+                                group: 6,
+                                price: 22.3,
+                                image: require('../../assets/uberVan.png'),
+                                note: "Rides for groups up to 6",
+                                promotion: 12,
+                                time: "20:31",
+                                id: "4",
+                                driver: {
+                                        name: "Zanele Dlamini",
+                                        gender: "Female",
+                                        rating: 4.6,
+                                        licensePlate: "EL 456-789",
+                                        location: "East London",
+                                        profileImage: "../../assets/blankProfilePic.jpg"
+
+                                }
+                        }
                 ]
         },
 
         {
                 title: "More",
                 data: [
-                        { name: "Assist", group: 3, price: 35.3, image: require('../../assets/uberAssist.png'), note: "Special assistance from certified drivers", promotion: 26, time: "20:25", id: "5" },
-                ]
-        },
+                        {
+                                name: "Assist",
+                                group: 3,
+                                price: 35.3,
+                                image: require('../../assets/uberAssist.png'),
+                                note: "Special assistance from certified drivers",
+                                promotion: 26,
+                                time: "20:25",
+                                id: "5",
+                                driver: {
+                                        name: "Thabo Mokoena",
+                                        gender: "Male",
+                                        rating: 4.9,
+                                        licensePlate: "DBN 123-987",
+                                        location: "Bloemfontein",
+                                        profileImage: "../../assets/blankProfilePic.jpg"
 
+,                                }
+                        }
+                ]
+        }
 ];
 
 export const requestData = [{

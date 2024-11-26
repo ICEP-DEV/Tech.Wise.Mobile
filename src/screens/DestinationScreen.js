@@ -8,39 +8,11 @@ import MapComponent from '../components/MapComponent';
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
-const DestinationScreen = ({ navigation, route }) => {
-  const { origin } = useContext(OriginContext);
-  const { destination } = useContext(DestinationContext);
+const DestinationScreen = ({ navigation}) => {
+  const { origin, dispatchOrigin } = useContext(OriginContext);
+  const { destination, dispatchDestination } = useContext(DestinationContext);
 
-  const [userOrigin, setUserOrigin] = useState({
-    latitude: origin?.latitude || 0,
-    longitude: origin?.longitude || 0,
-  });
 
-  const [userDestination, setUserDestination] = useState({
-    latitude: destination?.latitude || 0,
-    longitude: destination?.longitude || 0,
-  });
-
-  // Update local states when origin or destination context changes
-  useEffect(() => {
-    if (origin?.latitude && origin?.longitude) {
-      setUserOrigin({ latitude: origin.latitude, longitude: origin.longitude });
-    }
-
-    if (destination?.latitude && destination?.longitude) {
-      setUserDestination({
-        latitude: destination.latitude,
-        longitude: destination.longitude,
-      });
-    }
-  }, [origin, destination]);
-
-  // Debug logs for tracking updates
-  useEffect(() => {
-    console.log("Origin Context Updated:", origin);
-    console.log("Destination Context Updated:", destination);
-  }, [origin, destination]);
 
   return (
     <View style={styles.view2}>
@@ -54,8 +26,7 @@ const DestinationScreen = ({ navigation, route }) => {
         />
       </View>
       <Text>Destination</Text>
-      {/* Pass userOrigin and userDestination to MapComponent */}
-      <MapComponent userOrigin={userOrigin} userDestination={userDestination} />
+
     </View>
   );
 };
