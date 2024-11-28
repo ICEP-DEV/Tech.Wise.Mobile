@@ -1,7 +1,7 @@
 import React, { useContext, useState, useEffect } from 'react';
 import { StyleSheet, View, Text, Dimensions, TouchableOpacity } from 'react-native';
 import MapComponent from '../components/MapComponent';
-import { colors } from '../global/styles';
+import { colors,parameters } from '../global/styles'
 import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
 import { GOOGLE_MAPS_APIKEY } from "@env";
 import { DestinationContext, OriginContext } from '../contexts/contexts';
@@ -10,8 +10,9 @@ import { Icon } from 'react-native-elements';
 import { rideData } from '../global/data';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
+const SCREEN_WIDTH = Dimensions.get('window').width;
 
-export default function RequestScreen({ navigation }) {
+export default function PendingRequests({ navigation }) {
   const { origin, dispatchOrigin } = useContext(OriginContext);
   const { destination, dispatchDestination } = useContext(DestinationContext);
 
@@ -46,36 +47,38 @@ export default function RequestScreen({ navigation }) {
     }
   };
 
-  useEffect(() => {
-    if (
-      userOrigin?.latitude !== 0 &&
-      userOrigin?.longitude !== 0 &&
-      destination &&
-      destination.latitude !== null &&
-      destination.longitude !== null
-    ) {
-      navigation.navigate('CarListingBottomSheet');
-    }
-  }, [userOrigin, destination]);
- 
+//   useEffect(() => {
+//     if (
+//       userOrigin?.latitude !== 0 &&
+//       userOrigin?.longitude !== 0 &&
+//       destination &&
+//       destination.latitude !== null &&
+//       destination.longitude !== null
+//     ) 
+//     {
+//       navigation.navigate('CarListingBottomSheet');
+//     }
+//   }, [userOrigin, destination]);
+
   const handleNavigation = () => {
-    if (  destination &&
-      destination.latitude !== null &&
-      destination.longitude !== null) {
-      navigation.navigate('CarListingBottomSheet'); // Navigate to CarListing if destination is entered
-    } else {
-      navigation.navigate('RecentPlacesBottomSheet'); // Navigate to RecentPlaces if destination is not entered
-    }
+    // if (destination &&
+    //   destination.latitude !== null &&
+    //   destination.longitude !== null) {
+    // } 
+    navigation.navigate('PendingTripsBottomSheet'); // Navigate to CarListing if destination is entered
+    // else {
+    //   navigation.navigate('RecentPlacesBottomSheet'); // Navigate to RecentPlaces if destination is not entered
+    // }
   };
-  
-  
-  
-   
+
+
+
+
   // const handleDestinationSelect = (data, details) => {
   //   const { lat, lng } = details.geometry.location;
   //   setUserDestination({ latitude: lat, longitude: lng });
   //   dispatchDestination({ type: 'ADD_DESTINATION', payload: { latitude: lat, longitude: lng } });
-  //   // navigation.navigate("RequestScreen",{state:0})
+  //   // navigation.navigate("PendingRequests",{state:0})
   // };
 
   useEffect(() => {
@@ -85,12 +88,17 @@ export default function RequestScreen({ navigation }) {
   return (
     <>
       <View style={styles.container}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <View style={styles.view1}>
-            <Text>Back</Text>
-          </View>
-        </TouchableOpacity>
-        <View style={[styles.inputContainer, autoCompleteStyles.inputStackContainer]}>
+      <View style ={styles.view1}> 
+                <Icon 
+                    type ="material-community"
+                    name ="arrow-left"
+                    color ={colors.grey1}
+                    size ={32} 
+                    onPress ={() => navigation.goBack()}
+                />
+            </View>
+
+        {/* <View style={[styles.inputContainer, autoCompleteStyles.inputStackContainer]}>
           <GooglePlacesAutocomplete
             placeholder="Where to"
             listViewDisplayed="auto"
@@ -121,16 +129,16 @@ export default function RequestScreen({ navigation }) {
             styles={autoCompleteStyles}
           />
 
-        </View>
+        </View> */}
 
 
         <TouchableOpacity
-  style={styles.arrowButton}
-  onPress={() => handleNavigation()}
->
-  <Icon type="material-community" name="arrow-up" size={30} color="white" />
-</TouchableOpacity>
-   
+          style={styles.arrowButton}
+          onPress={() => handleNavigation()}
+        >
+          <Icon type="material-community" name="arrow-up" size={30} color="white" />
+        </TouchableOpacity>
+
         <MapComponent userOrigin={userOrigin} userDestination={destination} />
       </View>
     </>
@@ -138,8 +146,33 @@ export default function RequestScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
+  container1:{flex:1,
+    paddingTop:parameters.statusBarHeight,
+    
+},
+
+container: {
     flex: 1,
+    paddingTop:parameters.statusBarHeight
+   
+  },
+  contentContainer: {
+    flex: 1,
+    alignItems: 'center',
+   
+  },
+  backButton: {
+    padding: 10,
+  },
+  backButtonContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  requestText: {
+    fontSize: 18,
+    color: colors.grey1,
+    marginLeft: 8, // Adds spacing between the icon and the text
+    fontWeight: 'bold', // Makes the text bold
   },
   inputContainer: {
     position: "absolute",
@@ -149,7 +182,7 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   arrowButton: {
-    backgroundColor: '#6200ee', // Deep purple button
+    backgroundColor: 'blue', // Deep purple button
     borderRadius: 30,          // Circle shape
     width: 60,                 // Diameter
     height: 60,                // Diameter
@@ -165,6 +198,28 @@ const styles = StyleSheet.create({
     elevation: 5,
     zIndex: 1,              // Elevation for Android shadow
   },
+  view1:{
+    position:"absolute",
+    top:25,
+    left:12,
+    backgroundColor:colors.white,
+    height:40,
+    width:40,
+    borderRadius:20,
+    justifyContent:"center",
+    alignItems:"center",
+    marginTop:2, 
+    zIndex: 8
+    
+  },
+
+  view2:{
+    height:SCREEN_HEIGHT*0.21,
+    alignItems:"center",
+    zIndex: 5,
+    backgroundColor:colors.white
+  },
+
 });
 
 const autoCompleteStyles = {
@@ -195,6 +250,6 @@ const autoCompleteStyles = {
     elevation: 3,
   },
   inputStackContainer: {
-    marginTop: 50,
+    marginTop: 65,
   },
 };

@@ -100,7 +100,7 @@ const styles = StyleSheet.create({
   driverDetailsTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 50,
+    // marginTop: 50,
     paddingBottom: 10,
     paddingHorizontal: 20,
     borderBottomLeftRadius: 20,

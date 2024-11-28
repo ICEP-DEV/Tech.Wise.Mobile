@@ -174,3 +174,52 @@ export const carsAround = [{ latitude: -26.207487, longitude: 28.236226 },
 { latitude: -26.208565, longitude: 28.237191 },
 { latitude: -26.203598, longitude: 28.239509 },
 ]
+
+// added trip requests
+export const RequestsData = [
+        {
+          street: "V&A Waterfront",
+          area: "Cape Town, Western Cape",
+          id: "0",
+          passenger: {
+            name: "Sibongile Dlamini",
+            phone: "+27 71 234 5678",
+            email: "sibongile.dlamini@example.com",
+          },
+          destination: {
+            latitude: -33.9068,
+            longitude: 18.4198,
+          },
+          pickup: {
+            street: "Long Street",
+            area: "Cape Town City Centre",
+            latitude: -33.9249,
+            longitude: 18.4241,
+          },
+          fare: 150.0,
+          status: "pending",
+        },
+        {
+          street: "Union Buildings",
+          area: "Pretoria, Gauteng",
+          id: "1",
+          passenger: {
+            name: "Thabo Mokoena",
+            phone: "+27 82 345 6789",
+            email: "thabo.mokoena@example.com",
+          },
+          destination: {
+            latitude: -25.7402,
+            longitude: 28.2122,
+          },
+          pickup: {
+            street: "Menlyn Mall",
+            area: "Pretoria East",
+            latitude: -25.7849,
+            longitude: 28.2752,
+          },
+          fare: 220.0,
+          status: "pending",
+        },
+      ];
+      

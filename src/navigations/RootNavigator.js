@@ -4,12 +4,15 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createDrawerNavigator } from '@react-navigation/drawer'; // Import DrawerNavigator
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'; // Import BottomTabNavigator
 import { Icon } from 'react-native-elements'; // Assuming you're using this for icons
-import HomeScreen from '../screens/HomeScreen';
-import RequestScreen from '../screens/RequestScreen';
-import DestinationScreen from '../screens/DestinationScreen'; // Make sure this is the correct import
+import HomeScreen from '../customerscreens/HomeScreen';
+import RequestScreen from '../customerscreens/RequestScreen';
+import DestinationScreen from '../customerscreens/DestinationScreen'; // Make sure this is the correct import
 import RecentPlacesBottomSheet from '../components/RecentPlacesBottomSheet';
 import CarListingBottomSheet from '../components/CarListingBottomSheet';
 import DriverDetailsBottomSheet  from '../components/DriverDetailsBottomSheet';
+// driver navigations
+import PendingRequests  from '../DriverScreens/PendingRequests';
+import PendingTripsBottomSheet from '../DriverComponents/PendingTripsBottomSheet';
 
 
 const Stack = createNativeStackNavigator(); // Renaming to `Stack` for better clarity
@@ -45,25 +48,25 @@ function BottomTabNavigator() {
         options={{
           tabBarIcon: ({ focused, size }) => (
             <Icon
-              name="car"
-              type="material-community"
-              size={size}
-              color={focused ? '#7cc' : 'gray'}
-            />
+            name="map"
+            type="material-community"
+            size={size}
+            color={focused ? '#7cc' : 'gray'}
+          />
           ),
         }}
       />
       <Tab.Screen
-        name="Destination"
-        component={DestinationScreen}
+        name="Drive"
+        component={PendingRequests}
         options={{
           tabBarIcon: ({ focused, size }) => (
             <Icon
-              name="map"
-              type="material-community"
-              size={size}
-              color={focused ? '#7cc' : 'gray'}
-            />
+            name="car"
+            type="material-community"
+            size={size}
+            color={focused ? '#7cc' : 'gray'}
+          />
           ),
         }}
       />
@@ -89,6 +92,7 @@ function DrawerNavigator() {
           ),
         }}
       />
+      
       {/* Add other screens to the drawer as needed */}
     </Drawer.Navigator>
   );
@@ -134,6 +138,16 @@ export default function RootNavigator() {
          <Stack.Screen
           name="DriverDetailsBottomSheet"
           component={DriverDetailsBottomSheet}
+             options={{
+            headerShown: false,
+            presentation: "transparentModal",
+            animation: "slide_from_bottom",
+          }}
+        />
+        {/* driver stacks */}
+        <Stack.Screen
+          name="PendingTripsBottomSheet"
+          component={PendingTripsBottomSheet}
              options={{
             headerShown: false,
             presentation: "transparentModal",

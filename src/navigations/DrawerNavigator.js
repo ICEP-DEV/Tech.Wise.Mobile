@@ -2,8 +2,8 @@ import * as React from "react";
 import { createDrawerNavigator } from "@react-navigation/drawer";
 import { Icon } from "react-native-elements";
 import { colors } from "../global/styles"; // Ensure this path is correct
-import HomeScreen from './screens/HomeScreen'; // Adjust the path based on your project structure
-import ProfileScreen from './screens/ProfileScreen'; // Add other screens as necessary
+import HomeScreen from './customerscreens/HomeScreen'; // Adjust the path based on your project structure
+import ProfileScreen from './customerscreens/ProfileScreen'; // Add other screens as necessary
 
 const Drawer = createDrawerNavigator();
 
