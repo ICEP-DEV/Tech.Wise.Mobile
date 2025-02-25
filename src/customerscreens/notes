@@ -399,7 +399,12 @@ const DestinationScreen = ({navigation}) => {
 }
 
 export default DestinationScreen;
-
+<TouchableOpacity
+style={styles.arrowButton}
+onPress={() => handleNavigation()}
+>
+<Icon type="material-community" name="arrow-up" size={30} color="white" />
+</TouchableOpacity>
 const styles = StyleSheet.create({
   container: {
     flex: 1,
