@@ -41,7 +41,7 @@ const THEME = {
   },
 }
 
-export default function PaymentMethod({ navigation }) {
+export default function PaymentMethod({ navigation, route }) {
   const [saveCard, setSaveCard] = useState(true)
   const user = useSelector((state) => state.auth.user)
   const mastercardIcon = require("../../assets/mastercard.png")
@@ -60,7 +60,7 @@ export default function PaymentMethod({ navigation }) {
   const [status, setStatus] = useState("") // State for status
   const [accountNumber, setAccountNumber] = useState("") // State for account number
   const [isVerified, setIsVerified] = useState(false) // State for verification status
-
+  const { exists,subaccount_code } = route.params // Destructure the exists prop from route.params
   // Determine which icon to show
   const cardIcon = cardType === "Visa" ? visaIcon : mastercardIcon
 
@@ -81,14 +81,13 @@ export default function PaymentMethod({ navigation }) {
     fetchPaystackBanks()
   }, [])
 
-  // Function to handle bank code selection
+  // Function to create subaccount
   const handleSubmit = async () => {
-    // Basic validation
     if (!nameOnCard || !cardNumber || !bankName || !bankCode || !countryCode) {
       Alert.alert("Error", "Please fill in all fields.")
       return
     }
-
+  
     const payload = {
       business_name: nameOnCard,
       settlement_bank: bankName,
@@ -96,54 +95,64 @@ export default function PaymentMethod({ navigation }) {
       bank_code: bankCode,
       percentage_charge: "3",
       user_id: user_id,
+      subaccount_code: subaccount_code,
     }
-
+  
     try {
-      const response = await axios.post(api + "create-subaccount", payload, {
-        headers: { "Content-Type": "application/json" },
-      })
-
-      if (response.status === 201) {
-        const data = response.data.data
-        console.log("Subaccount created successfully:", data);
-        
-        if (!data) throw new Error("Invalid response from server")
-
-        const subaccountData = {
-          user_id: user_id,
-          subaccount_code: data.subaccount_code,
-          business_name: data.business_name,
-          settlement_bank: data.settlement_bank,
-          currency: data.currency,
-          percentage_charge: data.percentage_charge,
-          is_verified: data.is_verified,
-          created_at: data.createdAt,
-          updated_at: data.updatedAt,
-          account_number: data.account_number,
-          status: response.data.status,
-        }
- 
-        navigation.navigate("successPage", {
-          user_id: user_id,
-          status: response.data.status,
-          account_number: subaccountData.account_number,
-          is_verified: subaccountData.is_verified,
-          bank_code: bankCode,
-          country_code: "ZA",
-          account_name: subaccountData.business_name,
-          // document_type: "identityNumber",
-          // document_number: ID_Number,
-          subaccountCode: subaccountData.subaccount_code,
+      if (exists) {
+        // 🔁 UPDATE SUBACCOUNT
+        const updateResponse = await axios.put(api + "update-subaccount", payload, {
+          headers: { "Content-Type": "application/json" },
         })
+  
+        if (updateResponse.status === 200) {
+          console.log("Subaccount updated:", updateResponse.data)
+          Alert.alert("Success", "Subaccount updated successfully")
+          navigation.navigate("successPage", {
+            user_id: user_id,
+            status: updateResponse.data.status,
+            account_number: cardNumber,
+            is_verified: updateResponse.data.data?.is_verified,
+            bank_code: bankCode,
+            country_code: "ZA",
+            account_name: nameOnCard,
+            subaccountCode: updateResponse.data.data?.subaccount_code,
+          })
+        } else {
+          console.log("Error updating subaccount:", updateResponse.data)
+          Alert.alert("Error", "Failed to update subaccount.")
+        }
       } else {
-        console.log("Error response:", response.data)
-        Alert.alert("Error", "Failed to create subaccount. Check your endpoint.")
+        // 🆕 CREATE SUBACCOUNT
+        const createResponse = await axios.post(api + "create-subaccount", payload, {
+          headers: { "Content-Type": "application/json" },
+        })
+  
+        if (createResponse.status === 201) {
+          const data = createResponse.data.data
+          console.log("Subaccount created successfully:", data)
+  
+          navigation.navigate("successPage", {
+            user_id: user_id,
+            status: createResponse.data.status,
+            account_number: data.account_number,
+            is_verified: data.is_verified,
+            bank_code: bankCode,
+            country_code: "ZA",
+            account_name: data.business_name,
+            subaccountCode: data.subaccount_code,
+          })
+        } else {
+          console.log("Create error response:", createResponse.data)
+          Alert.alert("Error", "Failed to create subaccount.")
+        }
       }
     } catch (error) {
-      console.error("Error creating subaccount:", error.response?.data || error)
-      Alert.alert("Error", "An error occurred while creating the subaccount.")
+      console.error("Error with subaccount operation:", error.response?.data || error)
+      Alert.alert("Error", "An error occurred while processing the subaccount.")
     }
   }
+  
 
   return (
     <View style={styles.container}>

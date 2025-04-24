@@ -34,7 +34,7 @@ export default function SuccessPage ({ navigation, route }) {
                         settlement_bank: data.settlement_bank,
                         currency: data.currency,
                         percentage_charge: data.percentage_charge,
-                        is_verified: data.is_verified,
+                        active: data.active,
                         created_at: data.createdAt,
                         updated_at: data.updatedAt,
                     };

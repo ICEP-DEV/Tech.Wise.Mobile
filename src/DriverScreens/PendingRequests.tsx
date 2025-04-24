@@ -528,8 +528,8 @@ export default function PendingRequests({ navigation, route }) {
       }
 
       // Check if driver is within 5 km of pickup location
-      const distanceInMetersRandom = 50
-      if (distanceToPickupInMeters <= 50) {
+      const distanceInMetersRandom = 500
+      if (distanceToPickupInMeters <= 500) {
         console.log("Driver is within 5km of pickup location")
         setShowStartButton(true)
         emitArrival(tripRequestSocket.id, tripRequestSocket.customerId)

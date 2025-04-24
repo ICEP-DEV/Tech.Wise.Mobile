@@ -129,7 +129,7 @@ const TripRequestModal = ({ isVisible, request, onClose, onTripUpdate }) => {
         },
         body: JSON.stringify({
           status: 'declined',
-          cancellation_reason: cancellationReason,
+          cancellation_reason: cancellationReason || null,
           cancel_by: 'driver',  // Assuming 'driver' is the cancel_by value
         }),
       });

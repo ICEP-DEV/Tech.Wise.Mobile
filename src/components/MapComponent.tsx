@@ -228,8 +228,8 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   driverMarkerContainer: {
-    width: 40,
-    height: 40,
+    width: 38,
+    height: 38,
     justifyContent: "center",
     alignItems: "center",
     borderRadius: 20,

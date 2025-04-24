@@ -133,7 +133,7 @@ const DriverStats = ({ navigation, route }) => {
         if (state === "online" && !timerRef.current) {
           startTimer()
         }
-      } catch (error) {
+      } catch (error) { 
         console.error("Error fetching driver state:", error.message)
       }
     }

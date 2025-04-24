@@ -4,12 +4,13 @@ import { useEffect, useState } from "react"
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   ActivityIndicator,
   TouchableOpacity,
   StatusBar,
   SafeAreaView,
+  Modal,
+  StyleSheet,
 } from "react-native"
 import axios from "axios"
 import { api } from "../../api"
@@ -23,13 +24,15 @@ import {
   CheckCircle,
   XCircle,
   ChevronRight,
+  AlertCircle,
 } from "lucide-react-native"
+import CustomDrawer from "../components/CustomDrawer"
+import { Icon } from "react-native-elements"
 
-// Define theme colors
 const THEME = {
   background: "#121212",
   card: "#1A1D26",
-  primary: "#00D8F0", // Bright cyan
+  primary: "#00D8F0",
   text: {
     primary: "#FFFFFF",
     secondary: "#AAAAAA",
@@ -42,16 +45,17 @@ const SubaccountDetailsScreen = ({ navigation, route }) => {
   const [subaccountDetails, setSubaccountDetails] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [modalVisible, setModalVisible] = useState(false)
   const user_id = useSelector((state) => state.auth.user?.user_id || "")
+  const [exists, setExists] = useState(false)
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const toggleDrawer = () => setDrawerOpen(!drawerOpen)
 
-  // Function to format date to a user-friendly format
+
   const formatDate = (dateString) => {
     if (!dateString) return "N/A"
-
     const date = new Date(dateString)
     if (isNaN(date.getTime())) return "Invalid Date"
-
-    // Format: Month Day, Year at Hour:Minute AM/PM
     return date.toLocaleDateString("en-US", {
       month: "long",
       day: "numeric",
@@ -61,43 +65,68 @@ const SubaccountDetailsScreen = ({ navigation, route }) => {
     })
   }
 
-  // Function to fetch subaccount details
+  const handleReplaceCard = () => {
+    setModalVisible(true)
+  }
+
+  const confirmReplaceCard = () => {
+    setModalVisible(false)
+    navigation.navigate("AddPaymentMethodScreen", {
+      exists: exists,
+      subaccount_code: subaccountDetails?.subaccount_code || null,
+    })
+  }
+
+  const cancelReplaceCard = () => {
+    setModalVisible(false)
+  }
+
   useEffect(() => {
     const fetchSubaccountDetails = async () => {
       try {
         const response = await axios.get(api + "subaccount", {
           params: { user_id },
-        })
+        });
 
         if (response.data.subaccount) {
-          setSubaccountDetails(response.data.subaccount)
-        } else {
-          setError("Failed to fetch subaccount details.")
+          setSubaccountDetails(response.data.subaccount);
+          setExists(true);
         }
       } catch (err) {
-        console.log("Error fetching subaccount details:", err)
-        setError("Unable to load account details. Please try again later.")
+        if (err.response && err.response.status === 404) {
+          // No subaccount found
+          setSubaccountDetails(null);
+          setExists(false);
+        } else {
+          setError("Unable to load account details. Please try again later.");
+        }
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    fetchSubaccountDetails()
-  }, [user_id])
+    fetchSubaccountDetails();
+  }, [user_id]);
+
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor={THEME.background} />
 
-      {/* Header */}
-      <View style={styles.header}>
+      {/* <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <ArrowLeft color={THEME.primary} size={24} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Account Details</Text>
         <View style={{ width: 40 }} />
+      </View> */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={toggleDrawer} style={styles.menuButton}>
+          <Icon type="material-community" name="menu" color={THEME.text.primary} size={24} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Card Details</Text>
+        <View style={{ width: 40 }} />
       </View>
-
       {loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={THEME.primary} />
@@ -111,9 +140,20 @@ const SubaccountDetailsScreen = ({ navigation, route }) => {
             <Text style={styles.retryButtonText}>Go Back</Text>
           </TouchableOpacity>
         </View>
+      ) : !subaccountDetails ? (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>No payment method found.</Text>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={() =>
+              navigation.navigate("AddPaymentMethodScreen", { exists: false })
+            }
+          >
+            <Text style={styles.retryButtonText}>Add Payment Method</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
         <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-          {/* Account Status Card */}
           <View style={styles.statusCard}>
             <View style={styles.statusIconContainer}>
               {subaccountDetails.is_verified ? (
@@ -123,16 +163,15 @@ const SubaccountDetailsScreen = ({ navigation, route }) => {
               )}
             </View>
             <Text style={styles.statusTitle}>
-              {subaccountDetails.is_verified ? "Verified Account" : "Unverified Account"}
+              {subaccountDetails.is_verified ? "Active Account" : "Unverified Account"}
             </Text>
             <Text style={styles.statusDescription}>
               {subaccountDetails.is_verified
-                ? "Your account has been verified and is ready to receive payments."
-                : "Your account is pending verification. This may take 1-2 business days."}
+                ? "Your account is active and is ready to receive payments."
+                : "Your account is pending verification and not active. This may take 1-2 business days."}
             </Text>
           </View>
 
-          {/* Details Card */}
           <View style={styles.detailsCard}>
             <Text style={styles.cardTitle}>Account Information</Text>
 
@@ -182,18 +221,6 @@ const SubaccountDetailsScreen = ({ navigation, route }) => {
               </View>
             </View>
 
-            <View style={styles.divider} />
-
-            {/* <View style={styles.detailItem}>
-              <View style={styles.detailIconContainer}>
-                <CreditCard color={THEME.primary} size={20} />
-              </View>
-              <View style={styles.detailContent}>
-                <Text style={styles.detailLabel}>Subaccount Code</Text>
-                <Text style={styles.detailValue}>{subaccountDetails.subaccount_code || "N/A"}</Text>
-              </View>
-            </View> */}
-
             {subaccountDetails.description && (
               <>
                 <View style={styles.divider} />
@@ -210,16 +237,54 @@ const SubaccountDetailsScreen = ({ navigation, route }) => {
             )}
           </View>
 
-          {/* Action Button */}
-          <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate("AddPaymentMethodScreen")}>
+          <TouchableOpacity style={styles.actionButton} onPress={handleReplaceCard}>
             <Text style={styles.actionButtonText}>Replace card</Text>
             <ChevronRight color="#FFFFFF" size={20} />
           </TouchableOpacity>
         </ScrollView>
       )}
+
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={cancelReplaceCard}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalIconContainer}>
+              <AlertCircle color={THEME.primary} size={40} />
+            </View>
+
+            <Text style={styles.modalTitle}>Replace Card?</Text>
+
+            <Text style={styles.modalDescription}>
+              Are you sure you want to replace your current payment card? This action will redirect you to add a new payment method.
+            </Text>
+
+            <View style={styles.modalButtonsContainer}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalCancelButton]}
+                onPress={cancelReplaceCard}
+              >
+                <Text style={styles.modalCancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalConfirmButton]}
+                onPress={confirmReplaceCard}
+              >
+                <Text style={styles.modalConfirmButtonText}>Confirm</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+      <CustomDrawer isOpen={drawerOpen} toggleDrawer={toggleDrawer} navigation={navigation} />
     </SafeAreaView>
   )
 }
+
 
 const styles = StyleSheet.create({
   safeArea: {
@@ -383,6 +448,92 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
     marginRight: 8,
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContainer: {
+    backgroundColor: THEME.card,
+    borderRadius: 16,
+    padding: 24,
+    width: '90%',
+    maxWidth: 400,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 216, 240, 0.3)',
+    shadowColor: THEME.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  modalIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(0, 216, 240, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: THEME.text.primary,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  modalDescription: {
+    fontSize: 16,
+    color: THEME.text.secondary,
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 22,
+  },
+  modalButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalCancelButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    marginRight: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  modalConfirmButton: {
+    backgroundColor: THEME.primary,
+    marginLeft: 10,
+  },
+  modalCancelButtonText: {
+    color: THEME.text.primary,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  modalConfirmButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  menuButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: THEME.primary,
+    alignItems: "center",
+    justifyContent: "center",
   },
 })
 

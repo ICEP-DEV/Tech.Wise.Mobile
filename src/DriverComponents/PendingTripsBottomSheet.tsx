@@ -35,7 +35,7 @@ const PendingTripsBottomSheet = ({ navigation }) => {
       Animated.timing(slideAnim, {
         toValue: 0,
         duration: 300,
-        useNativeDriver: true,
+        useNativeDriver: true, 
       }),
       Animated.timing(fadeAnim, {
         toValue: 1,
