@@ -53,6 +53,7 @@ const DriverStats = ({ navigation, route }) => {
     const minutes = Math.floor((seconds % 3600) / 60)
     return `${hours} hrs ${minutes} min`
   }
+  
 
   // Custom stats object that uses the dynamic worked hours
   const [customStats, setCustomStats] = useState({
@@ -89,59 +90,86 @@ const DriverStats = ({ navigation, route }) => {
   }, [route.params?.workedSeconds])
 
   // Update the stats object whenever totalWorkedSeconds changes
-  useEffect(() => {
-    setCustomStats((prev) => ({
-      daily: {
-        ...prev.daily,
-        workedHours: formatWorkedHours(totalWorkedSeconds.daily),
-      },
-      weekly: {
-        ...prev.weekly,
-        workedHours: formatWorkedHours(totalWorkedSeconds.weekly),
-      },
-      monthly: {
-        ...prev.monthly,
-        workedHours: formatWorkedHours(totalWorkedSeconds.monthly),
-      },
-    }))
-  }, [totalWorkedSeconds])
+  // useEffect(() => {
+  //   setCustomStats((prev) => ({
+  //     daily: {
+  //       ...prev.daily,
+  //       workedHours: formatWorkedHours(totalWorkedSeconds.daily),
+  //     },
+  //     weekly: {
+  //       ...prev.weekly,
+  //       workedHours: formatWorkedHours(totalWorkedSeconds.weekly),
+  //     },
+  //     monthly: {
+  //       ...prev.monthly,
+  //       workedHours: formatWorkedHours(totalWorkedSeconds.monthly),
+  //     },
+  //   }))
+  // }, [totalWorkedSeconds])
 
-  useEffect(() => {
-    const fetchDriverState = async () => {
-      try {
-        const response = await axios.get(`${api}getDriverState?userId=${user_id}`)
-        const {
-          state,
-          driverOnlineTime = 0, // Fetch online time from the API response
-          workedTime = { daily: 0, weekly: 0, monthly: 0 },
-        } = response.data
+// In DriverStats.tsx - Modify the useEffect that fetches driver state
 
-        // Set online/offline status
-        setIsOnline(state === "online")
+useEffect(() => {
+  const fetchDriverState = async () => {
+    try {
+      const response = await axios.get(`${api}getDriverState?userId=${user_id}`)
+      
+      // Log the full response to debug
+      console.log("API Response:", response.data);
+      
+      const {
+        state,
+        online_time = "00:00:00", // This is the format from your API
+        workedTime = { daily: 0 }, // Only track daily now
+      } = response.data
 
-        // Use driverOnlineTime instead of generic onlineDuration
-        setSecondsOnline(driverOnlineTime)
-        setLastOnlineDuration(driverOnlineTime)
+      // Parse the online_time string into seconds
+      const parsedSeconds = parseTimeStringToSeconds(online_time);
+      console.log("Parsed online time to seconds:", parsedSeconds);
 
-        // Set onlineTime to the fetched online time
-        setOnlineTime(driverOnlineTime) // <-- Add this line
+      // Set online/offline status
+      setIsOnline(state === "online")
 
-        // Set worked hours
-        setTotalWorkedSeconds(workedTime)
-
-        // Start timer if driver is online
-        if (state === "online" && !timerRef.current) {
-          startTimer()
-        }
-      } catch (error) { 
-        console.error("Error fetching driver state:", error.message)
+      if (state === "online") {
+        setSecondsOnline(parsedSeconds);
+        console.log("Driver is online, setting secondsOnline to:", parsedSeconds);
+      } else {
+        // For offline state, set the last online duration
+        setLastOnlineDuration(parsedSeconds);
+        console.log("Driver is offline, setting lastOnlineDuration to:", parsedSeconds);
       }
+
+      // Set worked hours - only daily now
+      setTotalWorkedSeconds({
+        daily: workedTime.daily || 0,
+        weekly: 0, // We're not using these anymore
+        monthly: 0, // We're not using these anymore
+      });
+
+      // Start timer if driver is online
+      if (state === "online" && !timerRef.current) {
+        startTimer()
+      }
+    } catch (error) { 
+      console.error("Error fetching driver state:", error.message)
     }
+  }
 
-    if (user_id) fetchDriverState()
+  if (user_id) fetchDriverState()
 
-    return () => stopTimer()
-  }, [user_id])
+  return () => stopTimer()
+}, [user_id])
+// Add this function to parse the time string
+const parseTimeStringToSeconds = (timeString) => {
+  try {
+    // Format: "HH:MM:SS"
+    const [hours, minutes, seconds] = timeString.split(':').map(Number);
+    return (hours * 3600) + (minutes * 60) + seconds;
+  } catch (error) {
+    console.error("Error parsing time string:", error);
+    return 0;
+  }
+}
 
   //fetch session time from the API
   useEffect(() => {
@@ -216,86 +244,129 @@ const DriverStats = ({ navigation, route }) => {
 
   const startTimer = () => {
     if (!timerRef.current) {
+      console.log("Starting timer with initial value:", secondsOnline);
       timerRef.current = setInterval(() => {
-        setSecondsOnline((prev) => prev + 1)
-      }, 1000)
+        setSecondsOnline((prev) => {
+          const newValue = prev + 1;
+          // Log every minute for debugging
+          if (newValue % 60 === 0) {
+            console.log("Timer running for 1 minute, current seconds:", newValue);
+            console.log("Formatted time:", formatSecondsToTimeString(newValue));
+          }
+          return newValue;
+        });
+      }, 1000);
     }
   }
-
   const stopTimer = () => {
     if (timerRef.current) {
       clearInterval(timerRef.current)
       timerRef.current = null
     }
   }
-  const handleGoOnline = async () => {
-    animateButton()
-    if (!user_id) return
+ // In your handleGoOnline function (modified)
+const handleGoOnline = async () => {
+  animateButton()
+  if (!user_id) return
 
-    try {
-      const response = await axios.get(`${api}getDriverState?userId=${user_id}`)
-      if (response.data.state === "offline") {
-        // Get the total worked time from the database (this includes time already worked today)
-        const remainingTime = 43200 - (lastOnlineDuration + totalWorkedSeconds.daily) // 43200 seconds = 12 hours in a day
+  try {
+    const response = await axios.get(`${api}getDriverState?userId=${user_id}`)
+    console.log("Current driver state:", response.data)
 
-        if (remainingTime <= 0) {
-          alert("You have reached your maximum working time for today!")
-          return
-        }
-
-        const updatedOnlineTime = remainingTime
-
-        // Update the driver's status to "online" with the adjusted online time
-        await axios.put(`${api}updateDriverState`, {
-          user_id,
-          state: "online",
-          onlineDuration: updatedOnlineTime, // Set the remaining time
-          workedTime: totalWorkedSeconds, // Save the current worked time
-        })
-
-        setIsOnline(true) // Update state
-        setSecondsOnline(updatedOnlineTime) // Set the seconds online based on the remaining time
-        startTimer() // Start the timer based on the remaining time
-        navigation.navigate("PendingRequests", { user_id, secondsOnline: updatedOnlineTime }) // Navigate to PendingRequests screen
-      }
-    } catch (error) {
-      console.error("Failed to update driver status:", error.response?.data || error.message)
+    // Parse existing online_time from API
+    const online_time = response.data.online_time || "00:00:00"
+    const parsedSeconds = parseTimeStringToSeconds(online_time)
+    
+    // Get daily worked time from API
+    const dailyWorkedSeconds = response.data.workedTime?.daily || 0
+    
+    // Check 12-hour limit (43,200 seconds)
+    if (dailyWorkedSeconds >= 43200) {
+      alert("You've reached the 12-hour daily limit. Please rest.")
+      return
     }
+
+    // Calculate remaining available seconds
+    const remainingSeconds = 43200 - dailyWorkedSeconds
+    if (remainingSeconds <= 0) {
+      alert("Daily limit reached. System will auto-offline you soon.")
+      return
+    }
+
+    // Start timer from parsed seconds
+    setIsOnline(true)
+    setSecondsOnline(parsedSeconds)
+    startTimer()
+
+    // Update backend with continuing time
+    await axios.put(`${api}updateDriverState`, {
+      user_id,
+      state: "online",
+      online_time: formatSecondsToTimeString(parsedSeconds),
+      workedTime: { daily: dailyWorkedSeconds }
+    })
+
+    navigation.navigate("PendingRequests", {
+      user_id,
+      secondsOnline: parsedSeconds,
+      maxSeconds: remainingSeconds // Pass remaining time to next screen
+    })
+
+  } catch (error) {
+    console.error("Go online error:", error)
   }
+}
 
   const handleGoOffline = async () => {
     animateButton()
     if (!user_id) return
-
+  
     try {
-      // Calculate new worked time
+      console.log("Going offline with seconds online:", secondsOnline);
+      
+      // Format the seconds to the API's expected format (HH:MM:SS)
+      const formattedTime = formatSecondsToTimeString(secondsOnline);
+      console.log("Formatted time for API:", formattedTime);
+      
+      // Calculate new worked time - only daily now
       const newWorkedTime = {
         daily: totalWorkedSeconds.daily + secondsOnline,
-        weekly: totalWorkedSeconds.weekly + secondsOnline,
-        monthly: totalWorkedSeconds.monthly + secondsOnline,
+        // We're not tracking weekly and monthly anymore
       }
-
+  
       await axios.put(`${api}updateDriverState`, {
         user_id,
         state: "offline",
-        onlineDuration: 0, // Reset online duration
+        online_time: formattedTime, // Send in the format the API expects
         workedTime: newWorkedTime, // Save the updated worked time
       })
-
+  
       setIsOnline(false) // Update state
-      setLastOnlineDuration(secondsOnline) // Save last duration
+      setLastOnlineDuration(secondsOnline) // Save current session as last duration
       stopTimer() // Explicitly stop the timer
-
-      // Update total worked seconds
-      setTotalWorkedSeconds(newWorkedTime)
-
-      // Reset online seconds
-      setSecondsOnline(0)
+  
+      // Update total worked seconds - only daily now
+      setTotalWorkedSeconds({
+        daily: newWorkedTime.daily,
+        weekly: 0, // We're not using these anymore
+        monthly: 0, // We're not using these anymore
+      });
+  
+      // Don't reset secondsOnline to 0 - keep the value for when they go online again
+      // setSecondsOnline(0);
     } catch (error) {
       console.error("Failed to update driver status:", error.response?.data || error.message)
     }
   }
-
+  
+  // Add this function to format seconds to time string
+  const formatSecondsToTimeString = (totalSeconds) => {
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  }
   const animateButton = () => {
     Animated.sequence([
       Animated.timing(animationValue, {
@@ -400,33 +471,49 @@ const DriverStats = ({ navigation, route }) => {
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         {documentsFound ? (
           <>
-            <View style={styles.statusCard}>
-              <View style={styles.statusHeader}>
-                <View style={[styles.statusIndicator, isOnline ? styles.onlineIndicator : styles.offlineIndicator]} />
-                <Text style={styles.statusText}>{isOnline ? "Online" : "Offline"}</Text>
-              </View>
+       // Add this to your status card to display raw seconds
+       <View style={styles.statusCard}>
+  <View style={styles.statusHeader}>
+    <View style={[styles.statusIndicator, isOnline ? styles.onlineIndicator : styles.offlineIndicator]} />
+    <Text style={styles.statusText}>{isOnline ? "Online" : "Offline"}</Text>
+  </View>
 
-              <Text style={styles.timeText}>
-                {isOnline
-                  ? "Current Session: " + formatTime(secondsOnline)
-                  : "Last Session: " + formatTime(lastOnlineDuration)}
-              </Text>
+  <Text style={styles.timeText}>
+    {isOnline
+      ? "Current Session: " + formatTime(secondsOnline)
+      : "Last Session: " + formatTime(lastOnlineDuration)}
+  </Text>
+  
+  {/* Add this to show the raw seconds */}
+  <Text style={styles.rawTimeText}>
+    {isOnline
+      ? `(${secondsOnline} seconds)`
+      : `(${lastOnlineDuration} seconds)`}
+  </Text>
+  
+  {/* Add this to show both formats */}
+  <View style={styles.timeDetailContainer}>
+    <Text style={styles.timeDetailLabel}>
+      {isOnline ? "Current Session Details:" : "Last Session Details:"}
+    </Text>
+    <Text style={styles.timeDetailValue}>
+      {isOnline 
+        ? `${formatSecondsToTimeString(secondsOnline)} (${secondsOnline} seconds)`
+        : `${formatSecondsToTimeString(lastOnlineDuration)} (${lastOnlineDuration} seconds)`}
+    </Text>
+  </View>
+  
+  {/* Add this to show raw seconds */}
+  <Text style={styles.rawTimeText}>
+    {isOnline
+      ? `Current seconds: ${secondsOnline}`
+      : `Last session seconds: ${lastOnlineDuration}`}
+  </Text>
+  {/* Time Debug Section */}
 
-              <View style={styles.timeStatsRow}>
-                <View style={styles.timeStatItem}>
-                  <Text style={styles.timeStatLabel}>Today</Text>
-                  <Text style={styles.timeStatValue}>{formatWorkedHours(totalWorkedSeconds.daily)}</Text>
-                </View>
-                <View style={styles.timeStatItem}>
-                  <Text style={styles.timeStatLabel}>This Week</Text>
-                  <Text style={styles.timeStatValue}>{formatWorkedHours(totalWorkedSeconds.weekly)}</Text>
-                </View>
-                <View style={styles.timeStatItem}>
-                  <Text style={styles.timeStatLabel}>This Month</Text>
-                  <Text style={styles.timeStatValue}>{formatWorkedHours(totalWorkedSeconds.monthly)}</Text>
-                </View>
-              </View>
-            </View>
+
+
+</View>
 
             <View style={styles.toggleContainer}>
               {["daily", "weekly", "monthly"].map((timeframe) => (
@@ -751,6 +838,67 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "600",
+  },
+  rawTimeText: {
+    fontSize: 14,
+    fontFamily: 'monospace', // For better number readability
+    color: "#64748B",
+    marginBottom: 16,
+  },
+  timeStatSeconds: {
+    fontSize: 12,
+    color: "#94A3B8",
+    marginTop: 2,
+    fontFamily: 'monospace', // Use monospace font for better readability of numbers
+  },
+  debugSection: {
+    backgroundColor: "#F1F5F9",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+  },
+  debugTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#0F172A",
+    marginBottom: 12,
+  },
+  debugRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  debugLabel: {
+    fontSize: 14,
+    color: "#64748B",
+  },
+  debugValue: {
+    fontSize: 14,
+    fontFamily: "monospace",
+    color: "#0F172A",
+    fontWeight: "500",
+  },
+  timeDetailContainer: {
+    backgroundColor: "#F8FAFC",
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+  },
+  timeDetailLabel: {
+    fontSize: 14,
+    color: "#64748B",
+    marginBottom: 4,
+  },
+  timeDetailValue: {
+    fontSize: 16,
+    fontFamily: "monospace",
+    color: "#0F172A",
+    fontWeight: "500",
+  },
+  timeStatItemSingle: {
+    alignItems: "center",
+    justifyContent: "center",
+    width: "100%", // Take full width
   },
 })
 

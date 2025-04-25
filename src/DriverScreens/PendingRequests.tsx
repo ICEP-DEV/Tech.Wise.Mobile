@@ -415,7 +415,7 @@ export default function PendingRequests({ navigation, route }) {
         const updateResponse = await axios.put(`${api}updateDriverState`, {
           user_id,
           state: newState,
-          onlineDuration: secondsOnline,
+          onlineDuration: secondsOnline,  // Replace sessionSeconds with secondsOnline
           last_online_timestamp: new Date().toISOString() // ✅ added this
         })
 
@@ -458,7 +458,8 @@ export default function PendingRequests({ navigation, route }) {
     } catch (error) {
       console.error("Failed to update driver status:", error.response?.data || error.message)
     }
-  }
+}
+
   //update notifications to pending from firebase
   useEffect(() => {
     animateBell()
@@ -528,8 +529,8 @@ export default function PendingRequests({ navigation, route }) {
       }
 
       // Check if driver is within 5 km of pickup location
-      const distanceInMetersRandom = 500
-      if (distanceToPickupInMeters <= 500) {
+      const distanceInMetersRandom = 5000
+      if (distanceToPickupInMeters <= 5000) {
         console.log("Driver is within 5km of pickup location")
         setShowStartButton(true)
         emitArrival(tripRequestSocket.id, tripRequestSocket.customerId)
@@ -587,6 +588,7 @@ export default function PendingRequests({ navigation, route }) {
 
       if (!response.ok) throw new Error("Error updating trip status")
       //alert customer that trip has started and needs to confirm payment
+    
       emitStartTrip(tripData.id, tripData.customerId)
     } catch (error) {
       console.error("Error updating trip status:", error)
