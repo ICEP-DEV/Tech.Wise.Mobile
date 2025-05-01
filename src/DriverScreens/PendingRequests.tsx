@@ -62,7 +62,7 @@ export default function PendingRequests({ navigation, route }) {
   const [showEndButton, setShowEndButton] = useState(false)
   const [distanceTraveld, setDistanceTraveld] = useState("N/A")
   const [messages, setMessages] = useState([])
-  // console.log("Trip distance:dddddddddddddd", tripRequestSocket.id);
+  console.log("Trip distance:dddddddddddddd", tripData);
 
   // Timer state and ref
   const [secondsOnline, setSecondsOnline] = useState(0)
@@ -572,7 +572,7 @@ export default function PendingRequests({ navigation, route }) {
   //update trip and notify customer when driver clicks start trip
   const handleStartTrip = async () => {
     try {
-      // Update trip status via your backend API
+      // 1️⃣ Update trip status
       const response = await fetch(`${api}trips/${tripData.id}/status`, {
         method: "PUT",
         headers: {
@@ -584,16 +584,26 @@ export default function PendingRequests({ navigation, route }) {
           cancel_by: null,
           distance_traveled: distance,
         }),
-      })
-
-      if (!response.ok) throw new Error("Error updating trip status")
-      //alert customer that trip has started and needs to confirm payment
-    
-      emitStartTrip(tripData.id, tripData.customerId)
+      });
+  
+      if (!response.ok) throw new Error("Error updating trip status");
+  
+      // 2️⃣ Update payment status to success
+      const paymentResponse = await fetch(`${api}payments/user/${tripData.customerId}/trip/${tripData.id}/status`, {
+        method: "PUT",
+      });
+      
+      if (!paymentResponse.ok) throw new Error("Error updating payment status");
+  
+      console.log("Payment status updated to success");
+  
+      // 3️⃣ Alert customer
+      emitStartTrip(tripData.id, tripData.customerId);
     } catch (error) {
-      console.error("Error updating trip status:", error)
+      console.error("Error starting trip:", error);
     }
-  }
+  };
+  
   //update trip and notify customer when driver clicks end trip
   const handleEndRide = async () => {
     try {
