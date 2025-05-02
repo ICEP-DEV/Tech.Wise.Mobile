@@ -60,7 +60,7 @@ export default function PaymentMethod({ navigation, route }) {
   const [status, setStatus] = useState("") // State for status
   const [accountNumber, setAccountNumber] = useState("") // State for account number
   const [isVerified, setIsVerified] = useState(false) // State for verification status
-  const { exists,subaccount_code } = route.params // Destructure the exists prop from route.params
+  const { subaccount_code } = route.params // Destructure the exists prop from route.params
   // Determine which icon to show
   const cardIcon = cardType === "Visa" ? visaIcon : mastercardIcon
 
@@ -80,14 +80,25 @@ export default function PaymentMethod({ navigation, route }) {
 
     fetchPaystackBanks()
   }, [])
+  const checkIfSubaccountExists = async () => {
+    try {
+      const response = await axios.get(api + `check-subaccount?user_id=${user_id}`);
+      return response.data.exists; // backend returns { exists: true/false }
+    } catch (err) {
+      console.error("Error checking subaccount:", err);
+      return false;
+    }
+  };
+
 
   // Function to create subaccount
   const handleSubmit = async () => {
+    const exists = await checkIfSubaccountExists(); // 👈 fetch existence before submitting
     if (!nameOnCard || !cardNumber || !bankName || !bankCode || !countryCode) {
       Alert.alert("Error", "Please fill in all fields.")
       return
     }
-  
+
     const payload = {
       business_name: nameOnCard,
       settlement_bank: bankName,
@@ -97,14 +108,14 @@ export default function PaymentMethod({ navigation, route }) {
       user_id: user_id,
       subaccount_code: subaccount_code,
     }
-  
+
     try {
       if (exists) {
         // 🔁 UPDATE SUBACCOUNT
         const updateResponse = await axios.put(api + "update-subaccount", payload, {
           headers: { "Content-Type": "application/json" },
         })
-  
+
         if (updateResponse.status === 200) {
           console.log("Subaccount updated:", updateResponse.data)
           Alert.alert("Success", "Subaccount updated successfully")
@@ -127,11 +138,11 @@ export default function PaymentMethod({ navigation, route }) {
         const createResponse = await axios.post(api + "create-subaccount", payload, {
           headers: { "Content-Type": "application/json" },
         })
-  
+
         if (createResponse.status === 201) {
           const data = createResponse.data.data
           console.log("Subaccount created successfully:", data)
-  
+
           navigation.navigate("successPage", {
             user_id: user_id,
             status: createResponse.data.status,
@@ -152,7 +163,7 @@ export default function PaymentMethod({ navigation, route }) {
       Alert.alert("Error", "An error occurred while processing the subaccount.")
     }
   }
-  
+
 
   return (
     <View style={styles.container}>
