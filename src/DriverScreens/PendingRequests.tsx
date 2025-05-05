@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { StyleSheet, View, Dimensions, TouchableOpacity, Image, Text, Animated } from "react-native"
+import { StyleSheet, View, Dimensions, TouchableOpacity, Image, Text, Animated, ActivityIndicator } from "react-native"
 import { Icon } from "react-native-elements"
 import { colors } from "../global/styles"
 import MapComponent from "../components/MapComponent"
@@ -26,6 +26,7 @@ import TripCancellationModal from "../components/TripCancelationModal"
 import { setTripData } from "../redux/actions/tripActions"
 import { setMessageData } from "../redux/actions/messageAction"
 import CustomDrawer from "../components/CustomDrawer"
+import { formatTime, formatSecondsToTimeString, MAX_TIME_PER_DAY_SECONDS } from "../utils/timeTracker"
 
 const SCREEN_HEIGHT = Dimensions.get("window").height
 const SCREEN_WIDTH = Dimensions.get("window").width
@@ -44,13 +45,13 @@ export default function PendingRequests({ navigation, route }) {
   const user = useSelector((state) => state.auth.user)
   const user_id = user?.user_id || null;
 
-  const openDrawer = route.params?.openDrawer
-  const state = route.params?.newState
+  // const openDrawer = route.params?.openDrawer
+  // const state = route.params?.newState
   // console.log(state, "state from pending requests")
   // console.log(openDrawer, "openDrawer from pending requests")
 
   //from TripRequestModal
-  const tripAccepted = route.params?.tripAccepted
+  // const tripAccepted = route.params?.tripAccepted
   //from TrpRequestModal
   const tripData = route.params?.tripData
   // is from socket
@@ -62,12 +63,163 @@ export default function PendingRequests({ navigation, route }) {
   const [showEndButton, setShowEndButton] = useState(false)
   const [distanceTraveld, setDistanceTraveld] = useState("N/A")
   const [messages, setMessages] = useState([])
-  console.log("Trip distance:dddddddddddddd", tripData);
+  // console.log("Trip distance:dddddddddddddd", tripRequestSocket);
 
   // Timer state and ref
   const [secondsOnline, setSecondsOnline] = useState(0)
-  const timerRef = useRef(null)
-  const [isTimerRunning, setIsTimerRunning] = useState(false)
+  // const timerRef = useRef(null)
+  const [loading, setLoading] = useState(true);
+
+  const [remainingTime, setRemainingTime] = useState(0);
+
+  useEffect(() => {
+    axios.get(api + `/driver/remainingTime/${user_id}`)
+      .then(res => {
+        setRemainingTime(res.data.remainingSeconds);
+        startCountdown(res.data.remainingSeconds);
+      })
+      .catch(err => console.error(err, "-----------------"));
+  }, [user_id]);
+  // Timer functions
+
+  const startCountdown = (initialSeconds) => {
+    let seconds = initialSeconds;
+    const interval = setInterval(() => {
+      seconds--;
+      setRemainingTime(seconds);
+      if (seconds <= 0) {
+        clearInterval(interval);
+        handleGoOffline();
+      }
+    }, 1000);
+  };
+  const timerRef = useRef(null); // ref to hold the timer id
+
+  useEffect(() => {
+    timerRef.current = setInterval(() => {
+      setRemainingTime(prev => Math.max(prev - 1, 0));
+    }, 1000);
+
+    return () => clearInterval(timerRef.current); // cleanup on unmount
+  }, []);
+
+  const stopTimer = () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null; // optional: clear ref so it can't clear again
+      console.log('Timer stopped');
+    }
+  };
+
+  // const handleGoOffline = () => {
+  //   clearInterval(timer); // <- clear the countdown interval
+  //   let newState = "offline"
+  //   axios.post(`/driver/endSession/${user_id}`)
+  //     .then(() => navigation.navigate("DriverStats", {
+  //       workedSeconds: secondsOnline,
+  //       state: newState
+  //     }))
+  //     .catch(err => console.error(err));
+  // };
+
+  // const stopTimer = () => {
+  //   if (timerRef.current) {
+  //     clearInterval(timerRef.current)
+  //     timerRef.current = null
+  //     setIsTimerRunning(false)
+  //   }
+  // }
+
+  //go online button and offline button
+  const handleGoOffline = async () => {
+
+    // clearInterval(timer); // <- clear the countdown interval
+    animateButton()
+    const session_id = route.params?.session_id;  // get session_id from navigation params
+    if (!user_id || !session_id) {
+      console.warn("Missing user_id or session_id")
+      return
+    }
+
+    try {
+      // Fetch current driver state before updating
+      console.log("Fetching current driver state...");
+
+      const fetchResponse = await axios.get(`${api}getDriverState?userId=${user_id}`)
+      const currentState = fetchResponse.data.state
+
+      if (currentState === "online") {
+        const newState = "offline"
+        console.log("Driver is online, setting to offline...");
+
+        const updateResponse = await axios.put(`${api}updateDriverState`, {
+          user_id,
+          state: newState,
+          onlineDuration: secondsOnline,
+          last_online_timestamp: new Date().toISOString()
+        })
+
+        if (updateResponse.status === 200) {
+          console.log("Driver state updated to offline.")
+
+          // ✅ ADD: Update driver_session end_time by session_id
+          try {
+            console.log("Updating driver_session end_time...");
+
+            const sessionUpdateResponse = await axios.put(`${api}endDriverSession`, {
+              session_id,  // pass session_id
+              end_time: new Date().toISOString(),
+              workedSeconds: secondsOnline,
+            })
+
+            if (sessionUpdateResponse.status === 200) {
+              console.log("Driver session end_time stored successfully for session_id:", session_id)
+            } else {
+              console.warn("Failed to store end_time in driver_session. Status:", sessionUpdateResponse.status)
+            }
+          } catch (sessionError) {
+            console.error("Error updating driver_session:", sessionError.response?.data || sessionError.message)
+          }
+
+          setIsOnline(false)
+          stopTimer() // Stop the timer when going offline
+
+          console.log("Driver is now offline navigating.", secondsOnline)
+
+          // ✅ Redirect AFTER storing end_time
+          navigation.navigate("DriverStats", {
+            user_id,
+            session_id,
+            workedSeconds: secondsOnline,
+            state: newState
+          })
+        } else {
+          console.warn("Failed to update driver state. Status:", updateResponse.status)
+        }
+
+      } else {
+        // If driver is offline, set them to online
+        const updateResponse = await axios.put(`${api}updateDriverState`, {
+          user_id,
+          state: "online",
+          onlineDuration: 0
+        })
+
+        if (updateResponse.status === 200) {
+          setIsOnline(true)
+          setSecondsOnline(0)
+          console.log("Driver is now online.")
+          navigation.navigate("PendingRequests", { user_id, session_id })
+        } else if (updateResponse.status === 403) {
+          alert("You have reached the 12-hour daily limit. Please try again tomorrow.")
+        }
+      }
+    } catch (error) {
+      console.error("Failed to update driver status:", error.response?.data || error.message)
+    }
+  }
+
+
 
   // Extracting user origin and destination from tripData
   const [userOrigin, setUserOrigin] = useState({
@@ -80,31 +232,6 @@ export default function PendingRequests({ navigation, route }) {
     longitude: tripData?.dropOffCoordinates?.longitude ?? 0,
   })
 
-  // Timer functions
-  const startTimer = () => {
-    if (!timerRef.current) {
-      setIsTimerRunning(true)
-      timerRef.current = setInterval(() => {
-        setSecondsOnline((prev) => prev + 1)
-      }, 1000)
-    }
-  }
-
-  const stopTimer = () => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current)
-      timerRef.current = null
-      setIsTimerRunning(false)
-    }
-  }
-
-  // Format time for display
-  const formatTime = (seconds) => {
-    const hours = Math.floor(seconds / 3600)
-    const minutes = Math.floor((seconds % 3600) / 60)
-    const remainingSeconds = seconds % 60
-    return `${hours > 0 ? `${hours}h ` : ""}${minutes}m ${remainingSeconds}s`
-  }
 
   // socket notifications
   useEffect(() => {
@@ -260,13 +387,15 @@ export default function PendingRequests({ navigation, route }) {
   // Trip Cancellation Modal
   const [cancelModalVisible, setCancelModalVisible] = useState(false)
   const [cancelReason, setCancelReason] = useState("")
+  const [tripStatusAccepted, setTripStatusAccepted] = useState(null)
+
+
   const handleCancelTrip = () => {
     setCancelModalVisible(true) // Show cancellation modal
   }
   const handleCloseModal = () => {
     setCancelModalVisible(false) // Close modal
   }
-  const [tripStatusAccepted, setTripStatusAccepted] = useState(null)
   // Fetch trip statuses
   useEffect(() => {
     const fetchTripStatuses = async () => {
@@ -379,10 +508,11 @@ export default function PendingRequests({ navigation, route }) {
 
         if (state === "online") {
           setIsOnline(true)
-          startTimer() // Start the timer if driver is already online
+          // startTimer() // Start the timer if driver is already online
         } else {
           setIsOnline(false)
-          stopTimer()
+          stopTimer() // Stop the timer if driver is offline
+
         }
       } catch (error) {
         console.error("Error fetching driver state:", error.message)
@@ -391,74 +521,8 @@ export default function PendingRequests({ navigation, route }) {
 
     checkDriverState()
 
-    return () => {
-      // Clean up timer when component unmounts
-      stopTimer()
-    }
+    stopTimer() // Stop the timer when component mounts
   }, [user_id])
-
-  //go online button and offline button
-  const handleGoOnline = async () => {
-    animateButton()
-
-    if (!user_id) return
-
-    try {
-      // Fetch current driver state before updating
-      const fetchResponse = await axios.get(`${api}getDriverState?userId=${user_id}`)
-      const currentState = fetchResponse.data.state
-      // console.log("Fetched state:", currentState)
-
-      if (currentState === "online") {
-        const newState = "offline"
-
-        const updateResponse = await axios.put(`${api}updateDriverState`, {
-          user_id,
-          state: newState,
-          onlineDuration: secondsOnline,  // Replace sessionSeconds with secondsOnline
-          last_online_timestamp: new Date().toISOString() // ✅ added this
-        })
-
-
-        // console.log("Update response:", updateResponse.data.message)
-
-        if (updateResponse.status === 200) {
-          setIsOnline(false) // Update frontend UI
-          stopTimer() // Stop the timer
-          console.log("Driver is now offline.", secondsOnline);
-
-          // Navigate to DriverStats with the worked seconds
-          navigation.navigate("DriverStats", {
-            user_id,
-            workedSeconds: secondsOnline, // Pass the worked seconds to DriverStats
-          })
-        } else {
-          console.warn("Failed to update driver state. Status:", updateResponse.status)
-        }
-      } else {
-        // If driver is offline, set them to online
-        const updateResponse = await axios.put(`${api}updateDriverState`, {
-          user_id,
-          state: "online",
-          onlineDuration: 0, // Reset duration when going online
-        })
-
-        if (updateResponse.status === 200) {
-          setIsOnline(true)
-          setSecondsOnline(0)
-          startTimer()
-        } else if (updateResponse.status === 403) {
-          alert("You have reached the 12-hour daily limit. Please try again tomorrow.")
-        }
-
-
-        console.log("Driver is now online.")
-        navigation.navigate("PendingRequests", { user_id }) // Still navigate if already online
-      }
-    } catch (error) {
-      console.error("Failed to update driver status:", error.response?.data || error.message)
-    }
-}
 
   //update notifications to pending from firebase
   useEffect(() => {
@@ -585,25 +649,25 @@ export default function PendingRequests({ navigation, route }) {
           distance_traveled: distance,
         }),
       });
-  
+
       if (!response.ok) throw new Error("Error updating trip status");
-  
+
       // 2️⃣ Update payment status to success
       const paymentResponse = await fetch(`${api}payments/user/${tripData.customerId}/trip/${tripData.id}/status`, {
         method: "PUT",
       });
-      
+
       if (!paymentResponse.ok) throw new Error("Error updating payment status");
-  
+
       console.log("Payment status updated to success");
-  
+
       // 3️⃣ Alert customer
       emitStartTrip(tripData.id, tripData.customerId);
     } catch (error) {
       console.error("Error starting trip:", error);
     }
   };
-  
+
   //update trip and notify customer when driver clicks end trip
   const handleEndRide = async () => {
     try {
@@ -637,6 +701,14 @@ export default function PendingRequests({ navigation, route }) {
   }
   const [drawerOpen, setDrawerOpen] = useState(false)
   const toggleDrawer = () => setDrawerOpen(!drawerOpen)
+  // if (loading) {
+  //   return (
+  //     <View style={styles.container}>
+  //       <ActivityIndicator size="large" color="#0000ff" />
+  //     </View>
+  //   );
+  // }
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -653,11 +725,12 @@ export default function PendingRequests({ navigation, route }) {
 
       {/* Timer display */}
       <View style={styles.timerContainer}>
-        <Text style={styles.timerText}>Online Time: {formatTime(secondsOnline)}</Text>
+        {/* <Text style={styles.timerText}>Online Time: {formatTime(secondsOnline)}</Text> */}
+        <Text style={styles.timerText}>Remaining Time: {formatTime(remainingTime)}</Text>
       </View>
 
       <Animated.View style={{ transform: [{ scale: animationValue }] }}>
-        <TouchableOpacity style={styles.goOnlineButton} onPress={handleGoOnline}>
+        <TouchableOpacity style={styles.goOnlineButton} onPress={handleGoOffline}>
           <Text style={styles.goOnlineText}>{isOnline ? "OFF" : "GO"}</Text>
         </TouchableOpacity>
       </Animated.View>
@@ -674,7 +747,7 @@ export default function PendingRequests({ navigation, route }) {
             </View>
           )}
         </TouchableOpacity>
-        <Animated.View style={[ { transform: [{ scale: bellAnimation }] }]}>
+        <Animated.View style={[{ transform: [{ scale: bellAnimation }] }]}>
           <TouchableOpacity style={styles.actionButton} onPress={handleNotificationClick}>
             <Icon type="material-community" name="bell" color="#FFFFFF" size={24} />
             {notificationCount > 0 && (
@@ -874,7 +947,7 @@ const styles = StyleSheet.create({
   timerContainer: {
     position: "absolute",
     top: 30,
-    left: "50%",
+    left: "40%",
     transform: [{ translateX: -100 }], // Adjust -100 based on your view's approximate width
     backgroundColor: "#1A1D26",
     padding: 12,
@@ -882,7 +955,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(0, 216, 240, 0.3)",
     zIndex: 10,
-    flexDirection: "row",
+    flexDirection: "column",
     justifyContent: "center",
     alignItems: "center",
     shadowColor: "#000",

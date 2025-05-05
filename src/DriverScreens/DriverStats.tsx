@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState } from "react"
 import {
   View,
   Text,
@@ -17,356 +17,121 @@ import { BarChart, LineChart } from "react-native-chart-kit"
 import { useFonts } from "expo-font"
 import { Icon } from "react-native-elements"
 import { useSelector } from "react-redux"
+import CustomDrawer from "../components/CustomDrawer"
+// Import functions from timeTracker file
+import { formatSecondsToTimeString, MAX_TIME_PER_DAY_SECONDS } from "../utils/timeTracker"
 import axios from "axios"
 import { api } from "../../api"
-import CustomDrawer from "../components/CustomDrawer"
 
 const screenWidth = Dimensions.get("window").width
 
+// Updated chart config for light theme
+const lightChartConfig = {
+  backgroundColor: "#FFFFFF",
+  backgroundGradientFrom: "#FFFFFF",
+  backgroundGradientTo: "#FFFFFF",
+  decimalPlaces: 0,
+  color: (opacity = 1) => `rgba(13, 202, 240, ${opacity})`,
+  labelColor: (opacity = 1) => `rgba(75, 85, 99, ${opacity})`,
+  style: {
+    borderRadius: 16,
+  },
+  propsForDots: {
+    r: "6",
+    strokeWidth: "2",
+    stroke: "#0DCAF0",
+  },
+}
+
 const DriverStats = ({ navigation, route }) => {
+  // Basic state management
   const [view, setView] = useState("daily")
   const [animationValue] = useState(new Animated.Value(1))
   const [isOnline, setIsOnline] = useState(false)
-  const [secondsOnline, setSecondsOnline] = useState(0)
-  const [lastOnlineDuration, setLastOnlineDuration] = useState(0)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const toggleDrawer = () => setDrawerOpen(!drawerOpen)
-  const [sessionTime, setSessionTime] = useState(0)
-  const [totalWorkedSeconds, setTotalWorkedSeconds] = useState({
-    daily: 0,
-    weekly: 0,
-    monthly: 0,
-  })
-  const [onlineTime, setOnlineTime] = useState(0)
+  const state = route.params?.state ?? { newState: "offline" } // fallback if missing
+  const [totalSeconds, setTotalSeconds] = useState(0)
+  const [session_id, setSessionId] = useState(null) // State to store session_id
 
-  const timerRef = useRef(null)
+  // User data from state
   const user_id = useSelector((state) => state.auth.user?.user_id || "")
+  // time tracking functions (start)
+  // ----------------------------------------------------------------------------
+  // getting total worked time today
+  useEffect(() => {
+    axios
+      .get(api + `driver/totalWorkedToday/${user_id}`)
+      .then((res) => setTotalSeconds(res.data.totalSeconds))
+      .catch((err) => console.error(err))
+  }, [user_id, state])
+
+  // start session function to get session_id
+  const startSession = async () => {
+    try {
+      const response = await axios.post(api + "driver/startSession", {
+        userId: user_id,
+      })
+
+      if (response.status === 200) {
+        console.log("Session started successfully with session_id:", response.data.session_id)
+        return response.data
+      } else {
+        console.warn("Unexpected response from startSession:", response.data)
+        return null
+      }
+    } catch (error) {
+      console.error("Error starting session:", error)
+      return null
+    }
+  }
+
+  // Function to check and go online
+  const checkAndGoOnline = async () => {
+    try {
+      const sessionResponse = await startSession()
+
+      const session_id = sessionResponse?.session_id
+      setSessionId(session_id)
+      if (!session_id) {
+        console.error("No session_id returned from startSession")
+        return
+      }
+
+      const response = await axios.put(api + "driver/updateStatus", {
+        userId: user_id,
+        state: "online",
+      })
+
+      if (response.status === 200) {
+        if (response.data.alreadyOnline) {
+          console.log("Driver is already online, navigating...")
+        } else {
+          console.log("Driver status updated to online")
+        }
+
+        navigation.navigate("PendingRequests", { user_id, session_id })
+      }
+    } catch (error) {
+      console.error("Error updating driver status:", error)
+    }
+  }
+
+  // handleGoOnline function to start the session and update driver status
+  const handleGoOnline = async () => {
+    animateButton()
+    setIsOnline(true)
+    await checkAndGoOnline()
+  }
+  // time tracking functions (end)
+  // ----------------------------------------------------------------------------
   const [documentsFound, setDocumentsFound] = useState(true)
 
   const [fontsLoaded] = useFonts({
     AbrilFatface: require("../../assets/fonts/AbrilFatface-Regular.ttf"),
   })
 
-  // Format seconds to hours and minutes
-  const formatWorkedHours = (seconds) => {
-    const hours = Math.floor(seconds / 3600)
-    const minutes = Math.floor((seconds % 3600) / 60)
-    return `${hours} hrs ${minutes} min`
-  }
-  
-
-  // Custom stats object that uses the dynamic worked hours
-  const [customStats, setCustomStats] = useState({
-    daily: {
-      ridesAccepted: 0,
-      ridesDeclined: 0,
-      earnings: "$70",
-      ratings: "/5",
-      // workedHours: formatWorkedHours(0)
-    },
-    weekly: {
-      ridesAccepted: 0,
-      ridesDeclined: 0,
-      earnings: "$450",
-      ratings: "/5",
-      // workedHours: formatWorkedHours(0)
-    },
-    monthly: {
-      ridesAccepted: 0,
-      ridesDeclined: 0,
-      earnings: "$1800",
-      ratings: "/5",
-      // workedHours: formatWorkedHours(0)
-    },
-  })
-
-  // Check if we received updated worked time from PendingRequests
-  useEffect(() => {
-    if (route.params?.workedSeconds) {
-      console.log("Received worked seconds:", route.params.workedSeconds)
-      const receivedSeconds = route.params.workedSeconds
-      setTotalWorkedSeconds(receivedSeconds)
-    }
-  }, [route.params?.workedSeconds])
-
-  // Update the stats object whenever totalWorkedSeconds changes
-  // useEffect(() => {
-  //   setCustomStats((prev) => ({
-  //     daily: {
-  //       ...prev.daily,
-  //       workedHours: formatWorkedHours(totalWorkedSeconds.daily),
-  //     },
-  //     weekly: {
-  //       ...prev.weekly,
-  //       workedHours: formatWorkedHours(totalWorkedSeconds.weekly),
-  //     },
-  //     monthly: {
-  //       ...prev.monthly,
-  //       workedHours: formatWorkedHours(totalWorkedSeconds.monthly),
-  //     },
-  //   }))
-  // }, [totalWorkedSeconds])
-
-// In DriverStats.tsx - Modify the useEffect that fetches driver state
-
-useEffect(() => {
-  const fetchDriverState = async () => {
-    try {
-      const response = await axios.get(`${api}getDriverState?userId=${user_id}`)
-      
-      // Log the full response to debug
-      console.log("API Response:", response.data);
-      
-      const {
-        state,
-        online_time = "00:00:00", // This is the format from your API
-        workedTime = { daily: 0 }, // Only track daily now
-      } = response.data
-
-      // Parse the online_time string into seconds
-      const parsedSeconds = parseTimeStringToSeconds(online_time);
-      console.log("Parsed online time to seconds:", parsedSeconds);
-
-      // Set online/offline status
-      setIsOnline(state === "online")
-
-      if (state === "online") {
-        setSecondsOnline(parsedSeconds);
-        console.log("Driver is online, setting secondsOnline to:", parsedSeconds);
-      } else {
-        // For offline state, set the last online duration
-        setLastOnlineDuration(parsedSeconds);
-        console.log("Driver is offline, setting lastOnlineDuration to:", parsedSeconds);
-      }
-
-      // Set worked hours - only daily now
-      setTotalWorkedSeconds({
-        daily: workedTime.daily || 0,
-        weekly: 0, // We're not using these anymore
-        monthly: 0, // We're not using these anymore
-      });
-
-      // Start timer if driver is online
-      if (state === "online" && !timerRef.current) {
-        startTimer()
-      }
-    } catch (error) { 
-      console.error("Error fetching driver state:", error.message)
-    }
-  }
-
-  if (user_id) fetchDriverState()
-
-  return () => stopTimer()
-}, [user_id])
-// Add this function to parse the time string
-const parseTimeStringToSeconds = (timeString) => {
-  try {
-    // Format: "HH:MM:SS"
-    const [hours, minutes, seconds] = timeString.split(':').map(Number);
-    return (hours * 3600) + (minutes * 60) + seconds;
-  } catch (error) {
-    console.error("Error parsing time string:", error);
-    return 0;
-  }
-}
-
-  //fetch session time from the API
-  useEffect(() => {
-    const fetchSessionTime = async () => {
-      try {
-        const response = await axios.get(`${api}getDriverLog?userId=${user_id}`)
-        const { totalSessionTime } = response.data
-
-        // You can now include this in total worked time, or show it separately
-        setTotalWorkedSeconds((prev) => ({
-          daily: prev.daily, // Or update accordingly
-          weekly: prev.weekly,
-          monthly: totalSessionTime, // Example: show all session time in monthly
-        }))
-      } catch (error) {
-        console.error("Error fetching session time:", error.message)
-      }
-    }
-
-    if (user_id) {
-      fetchSessionTime()
-    }
-  }, [user_id])
-
-  //fetcRideStatus from the API
-  useEffect(() => {
-    const fetchRideStats = async () => {
-      try {
-        const response = await axios.get(`${api}getDriverTrips?userId=${user_id}`)
-
-        const { trips, ratings } = response.data // Assuming ratings is part of the response
-
-        const acceptedRides = trips.filter((trip) => trip.statuses === "accepted")
-        const declinedRides = trips.filter((trip) => trip.statuses === "declined")
-
-        // Assuming ratings is in the form of a single rating value
-        const driverRating = ratings?.average || "0" // Replace with actual ratings logic
-
-        // Update customStats with the fetched data
-        setCustomStats((prev) => ({
-          daily: {
-            ...prev.daily,
-            ridesAccepted: acceptedRides.length,
-            ridesDeclined: declinedRides.length,
-            earnings: "R70", // Replace with actual earnings calculation
-            ratings: `${driverRating}3/5`, // Use fetched driver rating
-          },
-          weekly: {
-            ...prev.weekly,
-            ridesAccepted: acceptedRides.length,
-            ridesDeclined: declinedRides.length,
-            earnings: "R450",
-            ratings: `${driverRating}/5`,
-          },
-          monthly: {
-            ...prev.monthly,
-            ridesAccepted: acceptedRides.length,
-            ridesDeclined: declinedRides.length,
-            earnings: "R1800",
-            ratings: `${driverRating}/5`,
-          },
-        }))
-      } catch (error) {
-        console.error("Error fetching ride stats:", error.message)
-      }
-    }
-
-    if (user_id) {
-      fetchRideStats()
-    }
-  }, [user_id])
-
-  const startTimer = () => {
-    if (!timerRef.current) {
-      console.log("Starting timer with initial value:", secondsOnline);
-      timerRef.current = setInterval(() => {
-        setSecondsOnline((prev) => {
-          const newValue = prev + 1;
-          // Log every minute for debugging
-          if (newValue % 60 === 0) {
-            console.log("Timer running for 1 minute, current seconds:", newValue);
-            console.log("Formatted time:", formatSecondsToTimeString(newValue));
-          }
-          return newValue;
-        });
-      }, 1000);
-    }
-  }
-  const stopTimer = () => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current)
-      timerRef.current = null
-    }
-  }
- // In your handleGoOnline function (modified)
-const handleGoOnline = async () => {
-  animateButton()
-  if (!user_id) return
-
-  try {
-    const response = await axios.get(`${api}getDriverState?userId=${user_id}`)
-    console.log("Current driver state:", response.data)
-
-    // Parse existing online_time from API
-    const online_time = response.data.online_time || "00:00:00"
-    const parsedSeconds = parseTimeStringToSeconds(online_time)
-    
-    // Get daily worked time from API
-    const dailyWorkedSeconds = response.data.workedTime?.daily || 0
-    
-    // Check 12-hour limit (43,200 seconds)
-    if (dailyWorkedSeconds >= 43200) {
-      alert("You've reached the 12-hour daily limit. Please rest.")
-      return
-    }
-
-    // Calculate remaining available seconds
-    const remainingSeconds = 43200 - dailyWorkedSeconds
-    if (remainingSeconds <= 0) {
-      alert("Daily limit reached. System will auto-offline you soon.")
-      return
-    }
-
-    // Start timer from parsed seconds
-    setIsOnline(true)
-    setSecondsOnline(parsedSeconds)
-    startTimer()
-
-    // Update backend with continuing time
-    await axios.put(`${api}updateDriverState`, {
-      user_id,
-      state: "online",
-      online_time: formatSecondsToTimeString(parsedSeconds),
-      workedTime: { daily: dailyWorkedSeconds }
-    })
-
-    navigation.navigate("PendingRequests", {
-      user_id,
-      secondsOnline: parsedSeconds,
-      maxSeconds: remainingSeconds // Pass remaining time to next screen
-    })
-
-  } catch (error) {
-    console.error("Go online error:", error)
-  }
-}
-
-  const handleGoOffline = async () => {
-    animateButton()
-    if (!user_id) return
-  
-    try {
-      console.log("Going offline with seconds online:", secondsOnline);
-      
-      // Format the seconds to the API's expected format (HH:MM:SS)
-      const formattedTime = formatSecondsToTimeString(secondsOnline);
-      console.log("Formatted time for API:", formattedTime);
-      
-      // Calculate new worked time - only daily now
-      const newWorkedTime = {
-        daily: totalWorkedSeconds.daily + secondsOnline,
-        // We're not tracking weekly and monthly anymore
-      }
-  
-      await axios.put(`${api}updateDriverState`, {
-        user_id,
-        state: "offline",
-        online_time: formattedTime, // Send in the format the API expects
-        workedTime: newWorkedTime, // Save the updated worked time
-      })
-  
-      setIsOnline(false) // Update state
-      setLastOnlineDuration(secondsOnline) // Save current session as last duration
-      stopTimer() // Explicitly stop the timer
-  
-      // Update total worked seconds - only daily now
-      setTotalWorkedSeconds({
-        daily: newWorkedTime.daily,
-        weekly: 0, // We're not using these anymore
-        monthly: 0, // We're not using these anymore
-      });
-  
-      // Don't reset secondsOnline to 0 - keep the value for when they go online again
-      // setSecondsOnline(0);
-    } catch (error) {
-      console.error("Failed to update driver status:", error.response?.data || error.message)
-    }
-  }
-  
-  // Add this function to format seconds to time string
-  const formatSecondsToTimeString = (totalSeconds) => {
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-    
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-  }
+  // Simple animation for the button
   const animateButton = () => {
     Animated.sequence([
       Animated.timing(animationValue, {
@@ -382,69 +147,202 @@ const handleGoOnline = async () => {
     ]).start()
   }
 
-  const chartData = {
-    daily: {
-      labels: ["9 AM", "12 PM", "3 PM", "6 PM", "9 PM"],
-      datasets: [
-        { data: [5, 8, 6, 4, 7], color: () => "#0DCAF0" },
-        { data: [1, 2, 3, 2, 1], color: () => "#FF6B6B" },
-      ],
-      legend: ["Accepted", "Declined"],
-    },
-    weekly: {
-      labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-      datasets: [
-        { data: [12, 10, 15, 14, 18, 20, 22], color: () => "#0DCAF0" },
-        { data: [3, 5, 2, 4, 3, 2, 1], color: () => "#FF6B6B" },
-      ],
-      legend: ["Accepted", "Declined"],
-    },
-    monthly: {
-      labels: ["Week 1", "Week 2", "Week 3", "Week 4"],
-      datasets: [
-        { data: [60, 70, 65, 80], color: () => "#0DCAF0" },
-        { data: [15, 10, 12, 8], color: () => "#FF6B6B" },
-      ],
-      legend: ["Accepted", "Declined"],
-    },
+  // Calculate percentage of time used
+  const timeUsedPercentage = Math.min(100, (totalSeconds / MAX_TIME_PER_DAY_SECONDS) * 100)
+
+  // driver stats functions (start)
+  // -------------------------------------------------------
+  const [stats, setStats] = useState({
+    daily: { ridesAccepted: 0, ridesDeclined: 0, earnings: "R0", ratings: "N/A", total_trips: 0 },
+    weekly: { ridesAccepted: 0, ridesDeclined: 0, earnings: "R0", ratings: "N/A", total_trips: 0 },
+    monthly: { ridesAccepted: 0, ridesDeclined: 0, earnings: "R0", ratings: "N/A", total_trips: 0 },
+  })
+
+  // Store previous stats for trend calculation
+  const [previousStats, setPreviousStats] = useState({
+    daily: { ridesAccepted: 0, ridesDeclined: 0, earnings: "R0", ratings: "N/A", total_trips: 0 },
+    weekly: { ridesAccepted: 0, ridesDeclined: 0, earnings: "R0", ratings: "N/A", total_trips: 0 },
+    monthly: { ridesAccepted: 0, ridesDeclined: 0, earnings: "R0", ratings: "N/A", total_trips: 0 },
+  })
+
+  useEffect(() => {
+    axios
+      .get(api + `driver/stats/${user_id}`)
+      .then((res) => {
+        const data = res.data
+        const today = new Date()
+
+        // Save current stats as previous stats before updating
+        setPreviousStats(stats)
+
+        const isSameDay = (date1, date2) => date1.toDateString() === date2.toDateString()
+        const isSameWeek = (date1, date2) => {
+          const startOfWeek = new Date(date2)
+          startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay())
+          const endOfWeek = new Date(startOfWeek)
+          endOfWeek.setDate(endOfWeek.getDate() + 6)
+          return date1 >= startOfWeek && date1 <= endOfWeek
+        }
+        const isSameMonth = (date1, date2) =>
+          date1.getFullYear() === date2.getFullYear() && date1.getMonth() === date2.getMonth()
+
+        // Get previous day, week, and month
+        const yesterday = new Date(today)
+        yesterday.setDate(yesterday.getDate() - 1)
+
+        const lastWeekStart = new Date(today)
+        lastWeekStart.setDate(lastWeekStart.getDate() - 7)
+
+        const lastMonthStart = new Date(today)
+        lastMonthStart.setMonth(lastMonthStart.getMonth() - 1)
+
+        // Current period data
+        const dailyTrips = data.filter((trip) => trip.requestDate && isSameDay(new Date(trip.requestDate), today))
+        const weeklyTrips = data.filter((trip) => trip.requestDate && isSameWeek(new Date(trip.requestDate), today))
+        const monthlyTrips = data.filter((trip) => trip.requestDate && isSameMonth(new Date(trip.requestDate), today))
+
+        // Previous period data
+        const yesterdayTrips = data.filter(
+          (trip) => trip.requestDate && isSameDay(new Date(trip.requestDate), yesterday),
+        )
+        const lastWeekTrips = data.filter((trip) => {
+          const tripDate = new Date(trip.requestDate)
+          return tripDate >= lastWeekStart && tripDate < new Date(today.setHours(0, 0, 0, 0))
+        })
+        const lastMonthTrips = data.filter((trip) => {
+          const tripDate = new Date(trip.requestDate)
+          return isSameMonth(tripDate, lastMonthStart)
+        })
+
+        const aggregateStats = (trips) => {
+          const ridesAccepted = trips.filter((trip) => trip.statuses === "completed").length
+          const ridesDeclined = trips.filter((trip) => trip.statuses === "canceled").length
+          const earnings = trips
+            .filter((trip) => trip.payment_status === "success")
+            .reduce((sum, trip) => sum + Number.parseFloat(trip.amount || 0), 0)
+          const ratings = trips.filter((trip) => trip.driver_ratings !== null).map((trip) => trip.driver_ratings)
+          const avgRating =
+            ratings.length > 0 ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1) : "N/A"
+
+          return {
+            ridesAccepted,
+            ridesDeclined,
+            earnings: `R${earnings.toFixed(2)}`,
+            ratings: `${avgRating}/5`,
+            total_trips: ridesAccepted + ridesDeclined,
+          }
+        }
+
+        const currentStats = {
+          daily: aggregateStats(dailyTrips),
+          weekly: aggregateStats(weeklyTrips),
+          monthly: aggregateStats(monthlyTrips),
+        }
+
+        const prevStats = {
+          daily: aggregateStats(yesterdayTrips),
+          weekly: aggregateStats(lastWeekTrips),
+          monthly: aggregateStats(lastMonthTrips),
+        }
+
+        console.log("Current stats:", currentStats)
+        console.log("Previous stats:", prevStats)
+
+        setStats(currentStats)
+        setPreviousStats(prevStats)
+      })
+      .catch((err) => console.error("Error fetching stats", err))
+  }, [user_id])
+
+  // Calculate trend percentage
+  const calculateTrend = (current, previous, isRating = false) => {
+    if (isRating) {
+      // Handle ratings differently
+      if (current === "N/A/5" || previous === "N/A/5") return "N/A"
+
+      const currentRating = Number.parseFloat(current.split("/")[0])
+      const previousRating = Number.parseFloat(previous.split("/")[0])
+
+      if (isNaN(currentRating) || isNaN(previousRating) || previousRating === 0) return "+0.0"
+
+      const difference = currentRating - previousRating
+      return difference >= 0 ? `+${difference.toFixed(1)}` : `${difference.toFixed(1)}`
+    } else {
+      // Handle numeric values
+      const currentValue =
+        typeof current === "string" && current.startsWith("R")
+          ? Number.parseFloat(current.substring(1))
+          : Number.parseFloat(current)
+
+      const previousValue =
+        typeof previous === "string" && previous.startsWith("R")
+          ? Number.parseFloat(previous.substring(1))
+          : Number.parseFloat(previous)
+
+      if (isNaN(currentValue) || isNaN(previousValue) || previousValue === 0) {
+        return currentValue > 0 ? "+100%" : "0%"
+      }
+
+      const percentChange = ((currentValue - previousValue) / previousValue) * 100
+      return percentChange >= 0 ? `+${percentChange.toFixed(1)}%` : `${percentChange.toFixed(1)}%`
+    }
   }
 
-  const earningsData = {
-    labels: chartData[view].labels,
-    datasets: [
-      {
-        data:
-          view === "daily"
-            ? [10, 20, 15, 25, 18]
-            : view === "weekly"
-              ? [100, 120, 110, 130, 125, 150, 160]
-              : [400, 450, 500, 550],
-        color: () => "#0DCAF0",
-      },
-    ],
-    legend: ["Earnings"],
+  // Calculate completion rate
+  const calculateCompletionRate = (timeframe) => {
+    const { ridesAccepted = 0, total_trips = 0 } = stats[timeframe] || {}
+    if (total_trips === 0) return "0%"
+    return `${Math.round((ridesAccepted / total_trips) * 100)}%`
   }
 
-  const chartConfig = {
-    backgroundGradientFrom: "#FFFFFF",
-    backgroundGradientTo: "#FFFFFF",
-    color: (opacity = 1) => `rgba(13, 202, 240, ${opacity})`,
-    labelColor: (opacity = 1) => `rgba(15, 23, 42, ${opacity})`,
-    strokeWidth: 2,
-    barPercentage: 0.6,
-    decimalPlaces: 0,
-    propsForDots: {
-      r: "5",
-      strokeWidth: "2",
-      stroke: "#0DCAF0",
-    },
+  // Calculate completion rate trend
+  const calculateCompletionTrend = (timeframe) => {
+    const current = stats[timeframe] || {}
+    const previous = previousStats[timeframe] || {}
+
+    const currentRate = current.total_trips > 0 ? (current.ridesAccepted / current.total_trips) * 100 : 0
+
+    const previousRate = previous.total_trips > 0 ? (previous.ridesAccepted / previous.total_trips) * 100 : 0
+
+    if (previousRate === 0) return currentRate > 0 ? "+100%" : "0%"
+
+    const percentChange = currentRate - previousRate
+    return percentChange >= 0 ? `+${percentChange.toFixed(1)}%` : `${percentChange.toFixed(1)}%`
   }
 
-  const formatTime = (seconds) => {
-    const hours = Math.floor(seconds / 3600)
-    const minutes = Math.floor((seconds % 3600) / 60)
-    const remainingSeconds = seconds % 60
-    return `${hours > 0 ? `${hours}h ` : ""}${minutes}m ${remainingSeconds}s`
+  // Add this function after the calculateCompletionTrend function and before the if (!fontsLoaded) check
+
+  // Generate chart data with days of the week
+  const generateWeeklyChartData = () => {
+    const daysOfWeek = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
+    // Generate random data between 0-100 for each day if no real data is available
+    // In a real app, you would map this to actual earnings data
+    const generateDataPoints = () => {
+      const currentStats = stats[view] || {}
+      const earnings = Number.parseFloat((currentStats.earnings || "R0").replace("R", "")) || 0
+
+      // Scale earnings to be within 0-100 range for visualization
+      const baseValue = Math.min(earnings * 2, 80) // Use earnings as a base, cap at 80
+
+      return daysOfWeek.map((_, index) => {
+        // Create a pattern that varies around the base value
+        const variance = Math.random() * 20 - 10 // Random variance between -10 and +10
+        return Math.max(0, Math.min(100, baseValue + variance)) // Ensure between 0-100
+      })
+    }
+
+    return {
+      labels: daysOfWeek,
+      datasets: [
+        {
+          data: generateDataPoints(),
+          color: (opacity = 1) => `rgba(13, 202, 240, ${opacity})`,
+          strokeWidth: 2,
+        },
+      ],
+      legend: ["Earnings"],
+    }
   }
 
   if (!fontsLoaded) {
@@ -456,13 +354,16 @@ const handleGoOnline = async () => {
     )
   }
 
+  const currentStats = stats[view] || {} // ensures we get current selected view's stats
+  const prevStats = previousStats[view] || {} // get previous stats for the same view
+
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F8FBFD" />
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
       <View style={styles.header}>
         <TouchableOpacity onPress={toggleDrawer} style={styles.menuButton}>
-          <Icon type="material-community" name="menu" color="#0F172A" size={24} />
+          <Icon type="material-community" name="menu" color="#4B5563" size={24} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Driver Dashboard</Text>
         <View style={{ width: 40 }} />
@@ -471,106 +372,167 @@ const handleGoOnline = async () => {
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         {documentsFound ? (
           <>
-       // Add this to your status card to display raw seconds
-       <View style={styles.statusCard}>
-  <View style={styles.statusHeader}>
-    <View style={[styles.statusIndicator, isOnline ? styles.onlineIndicator : styles.offlineIndicator]} />
-    <Text style={styles.statusText}>{isOnline ? "Online" : "Offline"}</Text>
-  </View>
+            <View style={styles.statsRow}>
+              <View style={styles.statCard}>
+                <Text style={styles.statLabel}>Rides</Text>
+                <Text style={styles.statValue}>{currentStats.total_trips || 0}</Text>
+                <Text style={styles.statTrend}>
+                  {calculateTrend(currentStats.total_trips || 0, prevStats.total_trips || 0)}
+                </Text>
+              </View>
 
-  <Text style={styles.timeText}>
-    {isOnline
-      ? "Current Session: " + formatTime(secondsOnline)
-      : "Last Session: " + formatTime(lastOnlineDuration)}
-  </Text>
-  
-  {/* Add this to show the raw seconds */}
-  <Text style={styles.rawTimeText}>
-    {isOnline
-      ? `(${secondsOnline} seconds)`
-      : `(${lastOnlineDuration} seconds)`}
-  </Text>
-  
-  {/* Add this to show both formats */}
-  <View style={styles.timeDetailContainer}>
-    <Text style={styles.timeDetailLabel}>
-      {isOnline ? "Current Session Details:" : "Last Session Details:"}
-    </Text>
-    <Text style={styles.timeDetailValue}>
-      {isOnline 
-        ? `${formatSecondsToTimeString(secondsOnline)} (${secondsOnline} seconds)`
-        : `${formatSecondsToTimeString(lastOnlineDuration)} (${lastOnlineDuration} seconds)`}
-    </Text>
-  </View>
-  
-  {/* Add this to show raw seconds */}
-  <Text style={styles.rawTimeText}>
-    {isOnline
-      ? `Current seconds: ${secondsOnline}`
-      : `Last session seconds: ${lastOnlineDuration}`}
-  </Text>
-  {/* Time Debug Section */}
+              <View style={[styles.statCard, styles.activeCard]}>
+                <Text style={[styles.statLabel, styles.activeCardText]}>Earnings</Text>
+                <Text style={[styles.statValue, styles.activeCardText]}>{currentStats.earnings || "R0.00"}</Text>
+                <Text style={[styles.statTrend, styles.activeCardText]}>
+                  {calculateTrend(currentStats.earnings || "R0.00", prevStats.earnings || "R0.00")}
+                </Text>
+              </View>
+            </View>
 
+            <View style={styles.statsRow}>
+              <View style={styles.statCard}>
+                <Text style={styles.statLabel}>Rating</Text>
+                <Text style={styles.statValue}>
+                  {currentStats.ratings ? currentStats.ratings.split("/")[0] : "N/A"}
+                </Text>
+                <Text style={styles.statTrend}>
+                  {calculateTrend(currentStats.ratings || "N/A/5", prevStats.ratings || "N/A/5", true)}
+                </Text>
+              </View>
 
-
-</View>
-
-            <View style={styles.toggleContainer}>
-              {["daily", "weekly", "monthly"].map((timeframe) => (
-                <TouchableOpacity
-                  key={timeframe}
-                  style={[styles.toggleButton, view === timeframe && styles.activeButton]}
-                  onPress={() => setView(timeframe)}
+              <View style={styles.statCard}>
+                <Text style={styles.statLabel}>Completed</Text>
+                <Text style={styles.statValue}>{calculateCompletionRate(view)}</Text>
+                <Text
+                  style={[
+                    styles.statTrend,
+                    { color: calculateCompletionTrend(view).startsWith("+") ? "#10B981" : "#F43F5E" },
+                  ]}
                 >
-                  <Text style={[styles.toggleText, view === timeframe && styles.activeText]}>
-                    {timeframe.charAt(0).toUpperCase() + timeframe.slice(1)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                  {calculateCompletionTrend(view)}
+                </Text>
+              </View>
             </View>
 
-            <View style={styles.statsContainer}>
-              {Object.entries(customStats[view]).map(([key, value]) => (
-                <View style={styles.statBox} key={key}>
-                  <Text style={styles.statTitle}>
-                    {key
-                      .replace(/([A-Z])/g, " $1")
-                      .trim()
-                      .charAt(0)
-                      .toUpperCase() +
-                      key
-                        .replace(/([A-Z])/g, " $1")
-                        .trim()
-                        .slice(1)}
-                  </Text>
-                  <Text style={styles.statValue}>{value}</Text>
+            <View style={styles.statusCard}>
+              <View style={styles.statusHeader}>
+                <View style={styles.statusHeaderLeft}>
+                  <View style={[styles.statusIndicator, isOnline ? styles.onlineIndicator : styles.offlineIndicator]} />
+                  <Text style={styles.statusText}>{isOnline ? "Online" : "Offline"}</Text>
                 </View>
-              ))}
+                <Text style={styles.statusHeaderRight}>
+                  {formatSecondsToTimeString(Math.max(0, MAX_TIME_PER_DAY_SECONDS - totalSeconds))} left
+                </Text>
+              </View>
+
+              <View style={styles.progressBarContainer}>
+                <View style={[styles.progressBar, { width: `${timeUsedPercentage}%` }]} />
+              </View>
+
+              <View style={styles.timeDetailsGrid}>
+                <View style={styles.timeDetailItem}>
+                  <Text style={styles.timeDetailLabel}>Daily Limit</Text>
+                  <Text style={styles.timeDetailValue}>{formatSecondsToTimeString(MAX_TIME_PER_DAY_SECONDS)}</Text>
+                </View>
+
+                <View style={styles.timeDetailItem}>
+                  <Text style={styles.timeDetailLabel}>Worked Today</Text>
+                  <Text style={styles.timeDetailValue}>{formatSecondsToTimeString(totalSeconds)}</Text>
+                </View>
+              </View>
             </View>
 
-            <View style={styles.chartCard}>
-              <Text style={styles.chartTitle}>Ride Acceptance</Text>
-              <BarChart
-                data={chartData[view]}
-                width={screenWidth - 40}
-                height={220}
-                chartConfig={chartConfig}
-                fromZero
-                showBarTops={false}
-                showValuesOnTopOfBars={false}
-                withInnerLines={false}
-                style={styles.chart}
-              />
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Performance</Text>
+              <View style={styles.tabContainer}>
+                {["daily", "weekly", "monthly"].map((timeframe) => (
+                  <TouchableOpacity
+                    key={timeframe}
+                    style={[styles.tabButton, view === timeframe && styles.activeTabButton]}
+                    onPress={() => setView(timeframe)}
+                  >
+                    <Text style={[styles.tabText, view === timeframe && styles.activeTabText]}>
+                      {timeframe.charAt(0).toUpperCase() + timeframe.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.statsDetailCard}>
+              <Text style={styles.statsDetailTitle}>Trip Statistics</Text>
+
+              <View style={styles.statsDetailRow}>
+                <Text style={styles.statsDetailLabel}>Total Trips</Text>
+                <Text style={styles.statsDetailValue}>{currentStats.total_trips || 0}</Text>
+              </View>
+
+              <View style={styles.statsDetailRow}>
+                <Text style={styles.statsDetailLabel}>Rides Accepted</Text>
+                <Text style={styles.statsDetailValue}>{currentStats.ridesAccepted || 0}</Text>
+              </View>
+
+              <View style={styles.statsDetailRow}>
+                <Text style={styles.statsDetailLabel}>Rides Declined</Text>
+                <Text style={styles.statsDetailValue}>{currentStats.ridesDeclined || 0}</Text>
+              </View>
+
+              <View style={styles.statsDetailRow}>
+                <Text style={styles.statsDetailLabel}>Acceptance Rate</Text>
+                <Text style={styles.statsDetailValue}>{calculateCompletionRate(view)}</Text>
+              </View>
+
+              <View style={styles.statsDetailRow}>
+                <Text style={styles.statsDetailLabel}>Total Earnings</Text>
+                <Text style={styles.statsDetailValue}>{currentStats.earnings || "R0.00"}</Text>
+              </View>
             </View>
 
             <View style={styles.chartCard}>
               <Text style={styles.chartTitle}>Earnings Trend</Text>
               <LineChart
-                data={earningsData}
+                data={generateWeeklyChartData()}
                 width={screenWidth - 40}
                 height={220}
-                chartConfig={chartConfig}
+                chartConfig={{
+                  ...lightChartConfig,
+                  // Ensure y-axis shows 0-100
+                  min: 0,
+                  max: 100,
+                  // Add y-axis labels
+                  yAxisSuffix: "",
+                  yAxisInterval: 20,
+                  // Format y-axis labels
+                  formatYLabel: (value) => `${value}`,
+                  // Ensure proper grid lines
+                  count: 6, // 0, 20, 40, 60, 80, 100
+                }}
                 bezier
+                withInnerLines={true}
+                withVerticalLines={false}
+                withHorizontalLines={true}
+                style={styles.chart}
+              />
+            </View>
+
+            <View style={styles.chartCard}>
+              <Text style={styles.chartTitle}>Device Traffic</Text>
+              <BarChart
+                data={{
+                  labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+                  datasets: [
+                    {
+                      data: [20, 45, 28, 80, 99, 43, 50],
+                    },
+                  ],
+                }}
+                width={screenWidth - 40}
+                height={220}
+                chartConfig={lightChartConfig}
+                fromZero
+                showBarTops={false}
+                showValuesOnTopOfBars={false}
                 withInnerLines={false}
                 style={styles.chart}
               />
@@ -592,9 +554,9 @@ const handleGoOnline = async () => {
         <Animated.View style={{ transform: [{ scale: animationValue }] }}>
           <TouchableOpacity
             style={[styles.goOnlineButton, isOnline && styles.goOfflineButton]}
-            onPress={isOnline ? handleGoOffline : handleGoOnline}
+            onPress={handleGoOnline}
           >
-            <Text style={styles.goOnlineText}>{isOnline ? "Go Offline" : "Go Online"}</Text>
+            <Text style={styles.goOnlineText}>{"Go Online"}</Text>
           </TouchableOpacity>
         </Animated.View>
       </View>
@@ -607,18 +569,18 @@ const handleGoOnline = async () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#F8FBFD",
+    backgroundColor: "#F8FAFC", // Light background
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F8FBFD",
+    backgroundColor: "#F8FAFC",
   },
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: "#64748B",
+    color: "#4B5563",
   },
   header: {
     flexDirection: "row",
@@ -629,18 +591,18 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
     backgroundColor: "#FFFFFF",
     borderBottomWidth: 1,
-    borderBottomColor: "#E2E8F0",
+    borderBottomColor: "#E5E7EB",
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#0F172A",
+    color: "#1F2937",
   },
   menuButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: "#F3F4F6",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -649,21 +611,69 @@ const styles = StyleSheet.create({
     padding: 20,
     marginBottom: 80,
   },
+  statsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 16,
+  },
+  statCard: {
+    width: "48%",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3.84,
+    elevation: 2,
+  },
+  activeCard: {
+    backgroundColor: "#0DCAF0", // Using the specified cyan color
+  },
+  activeCardText: {
+    color: "#FFFFFF",
+  },
+  statLabel: {
+    fontSize: 14,
+    color: "#6B7280",
+    marginBottom: 8,
+  },
+  statValue: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#1F2937",
+    marginBottom: 4,
+  },
+  statTrend: {
+    fontSize: 14,
+    color: "#10B981", // Green for positive trends
+    fontWeight: "500",
+  },
   statusCard: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 20,
+    borderRadius: 12,
     marginBottom: 20,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
-    shadowRadius: 15,
+    shadowRadius: 3.84,
     elevation: 2,
+    overflow: "hidden",
   },
   statusHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 12,
+    justifyContent: "space-between",
+    padding: 16,
+  },
+  statusHeaderLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  statusHeaderRight: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#0DCAF0",
   },
   statusIndicator: {
     width: 12,
@@ -672,110 +682,123 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   onlineIndicator: {
-    backgroundColor: "#10B981",
+    backgroundColor: "#10B981", // Green
   },
   offlineIndicator: {
-    backgroundColor: "#F43F5E",
+    backgroundColor: "#F43F5E", // Red
   },
   statusText: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#0F172A",
-  },
-  timeText: {
     fontSize: 16,
-    color: "#64748B",
-    marginBottom: 16,
+    fontWeight: "600",
+    color: "#1F2937",
   },
-  timeStatsRow: {
+  progressBarContainer: {
+    height: 6,
+    backgroundColor: "#E5E7EB",
+    borderRadius: 3,
+    overflow: "hidden",
+  },
+  progressBar: {
+    height: "100%",
+    backgroundColor: "#0DCAF0", // Using the specified cyan color
+  },
+  timeDetailsGrid: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    padding: 16,
   },
-  timeStatItem: {
-    alignItems: "center",
+  timeDetailItem: {
+    flex: 1,
   },
-  timeStatLabel: {
+  timeDetailLabel: {
     fontSize: 14,
-    color: "#64748B",
+    color: "#6B7280",
     marginBottom: 4,
   },
-  timeStatValue: {
+  timeDetailValue: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#0F172A",
+    color: "#1F2937",
   },
-  toggleContainer: {
+  sectionHeader: {
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#1F2937",
+    marginBottom: 12,
+  },
+  tabContainer: {
     flexDirection: "row",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    padding: 4,
-    marginBottom: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-    elevation: 1,
-  },
-  toggleButton: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: "center",
+    backgroundColor: "#F3F4F6",
     borderRadius: 8,
+    padding: 4,
   },
-  activeButton: {
-    backgroundColor: "#0DCAF0",
+  tabButton: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: "center",
+    borderRadius: 6,
   },
-  toggleText: {
+  activeTabButton: {
+    backgroundColor: "#0DCAF0", // Using the specified cyan color
+  },
+  tabText: {
     fontSize: 14,
     fontWeight: "500",
-    color: "#64748B",
+    color: "#6B7280",
   },
-  activeText: {
+  activeTabText: {
     color: "#FFFFFF",
   },
-  statsContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-    marginBottom: 20,
-  },
-  statBox: {
-    width: "48%",
+  statsDetailCard: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 16,
+    borderRadius: 12,
     padding: 16,
-    marginBottom: 16,
+    marginBottom: 20,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
-    shadowRadius: 15,
+    shadowRadius: 3.84,
     elevation: 2,
   },
-  statTitle: {
-    fontSize: 14,
-    color: "#64748B",
-    marginBottom: 8,
+  statsDetailTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1F2937",
+    marginBottom: 16,
   },
-  statValue: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#0F172A",
+  statsDetailRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+  statsDetailLabel: {
+    fontSize: 14,
+    color: "#6B7280",
+  },
+  statsDetailValue: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#1F2937",
   },
   chartCard: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 16,
+    borderRadius: 12,
     padding: 16,
     marginBottom: 20,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
-    shadowRadius: 15,
+    shadowRadius: 3.84,
     elevation: 2,
   },
   chartTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "600",
-    color: "#0F172A",
+    color: "#1F2937",
     marginBottom: 16,
   },
   chart: {
@@ -790,18 +813,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   goOnlineButton: {
-    backgroundColor: "#0DCAF0",
+    backgroundColor: "#0DCAF0", // Using the specified cyan color
     paddingVertical: 16,
     paddingHorizontal: 32,
     borderRadius: 30,
     shadowColor: "#0DCAF0",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 5,
   },
   goOfflineButton: {
-    backgroundColor: "#F43F5E",
+    backgroundColor: "#F43F5E", // Red for offline
   },
   goOnlineText: {
     color: "#FFFFFF",
@@ -818,18 +841,18 @@ const styles = StyleSheet.create({
   uploadDocumentsTitle: {
     fontSize: 24,
     fontWeight: "700",
-    color: "#0F172A",
+    color: "#1F2937",
     marginTop: 16,
     marginBottom: 8,
   },
   uploadDocumentsText: {
     fontSize: 16,
-    color: "#64748B",
+    color: "#6B7280",
     textAlign: "center",
     marginBottom: 24,
   },
   uploadButton: {
-    backgroundColor: "#0DCAF0",
+    backgroundColor: "#0DCAF0", // Using the specified cyan color
     paddingVertical: 16,
     paddingHorizontal: 32,
     borderRadius: 12,
@@ -838,67 +861,6 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "600",
-  },
-  rawTimeText: {
-    fontSize: 14,
-    fontFamily: 'monospace', // For better number readability
-    color: "#64748B",
-    marginBottom: 16,
-  },
-  timeStatSeconds: {
-    fontSize: 12,
-    color: "#94A3B8",
-    marginTop: 2,
-    fontFamily: 'monospace', // Use monospace font for better readability of numbers
-  },
-  debugSection: {
-    backgroundColor: "#F1F5F9",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
-  },
-  debugTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#0F172A",
-    marginBottom: 12,
-  },
-  debugRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 8,
-  },
-  debugLabel: {
-    fontSize: 14,
-    color: "#64748B",
-  },
-  debugValue: {
-    fontSize: 14,
-    fontFamily: "monospace",
-    color: "#0F172A",
-    fontWeight: "500",
-  },
-  timeDetailContainer: {
-    backgroundColor: "#F8FAFC",
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-  },
-  timeDetailLabel: {
-    fontSize: 14,
-    color: "#64748B",
-    marginBottom: 4,
-  },
-  timeDetailValue: {
-    fontSize: 16,
-    fontFamily: "monospace",
-    color: "#0F172A",
-    fontWeight: "500",
-  },
-  timeStatItemSingle: {
-    alignItems: "center",
-    justifyContent: "center",
-    width: "100%", // Take full width
   },
 })
 
