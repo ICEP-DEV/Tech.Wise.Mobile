@@ -62,9 +62,11 @@ const DriverStats = ({ navigation, route }) => {
   useEffect(() => {
     axios
       .get(api + `driver/totalWorkedToday/${user_id}`)
-      .then((res) => setTotalSeconds(res.data.totalSeconds))
+      .then((res) => setTotalSeconds(res.data.totalSeconds)    
+    )
       .catch((err) => console.error(err))
   }, [user_id, state])
+  console.log("Total worked time today:",totalSeconds);
 
   // start session function to get session_id
   const startSession = async () => {
@@ -165,6 +167,7 @@ const DriverStats = ({ navigation, route }) => {
     monthly: { ridesAccepted: 0, ridesDeclined: 0, earnings: "R0", ratings: "N/A", total_trips: 0 },
   })
 
+  // Fetch driver stats from the API and update them on dashboard
   useEffect(() => {
     axios
       .get(api + `driver/stats/${user_id}`)
