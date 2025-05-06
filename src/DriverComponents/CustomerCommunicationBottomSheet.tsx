@@ -4,14 +4,41 @@ import { DestinationContext } from '../contexts/contexts';
 import BottomSheet from '@gorhom/bottom-sheet';
 import { Picker } from '@react-native-picker/picker'; // Import Picker for dropdown
 import { Icon } from 'react-native-elements';
+import { useSelector } from 'react-redux';
 
-const CustomerCommunicationBottomSheet = ({ navigation }) => {
+const CustomerCommunicationBottomSheet = ({ navigation ,route}) => {
   const sheetRef = useRef(null);
+  const [tripId, setTripId] = useState(null);
+  const [customerId, setCustomerId] = useState(null);
+//   const customer_id = useSelector((state) => state.trip.tripData?.customerId || "");
+//   const trip_id = useSelector((state) => state.trip.tripData?.tripId || "");
+  
+
+//   const tripData = useSelector((state) => state.trip.tripData);
+// console.log("tripData from Redux:", tripData);
+
+//   console.log("CustomerCommunicationBottomSheet customer_id:", customer_id);
+// console.log("CustomerCommunicationBottomSheet trip_id:", trip_id);
+
+
+useEffect(() => {
+  const { tripId, customerId } = route?.params || {};
+  setTripId(tripId);
+  setCustomerId(customerId);
+  console.log("CustomerCommunicationBottomSheet tripId:", tripId);
+  console.log("CustomerCommunicationBottomSheet customerId:", customerId);
+}, []);
 
   const snapPoints = [ '20%']; // Example snap points, adjust as needed
   const handleChatPress = () => {
-    navigation.navigate('DriverChat');
+    navigation.navigate('DriverChat', {
+      trip_id: tripId,
+      customer_id: customerId,
+    });
+    
+      //  trip_id, customer_id });
   };
+  
    
 
   return (

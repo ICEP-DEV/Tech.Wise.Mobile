@@ -15,7 +15,7 @@ import {
 } from "../configSocket/socketConfig"
 import { useSelector } from "react-redux"
 
-const DriverChat = () => {
+const DriverChat = ({route}) => {
   const [editModalVisible, setEditModalVisible] = useState(false)
   const [editedMessageText, setEditedMessageText] = useState("")
   const [selectedMessageId, setSelectedMessageId] = useState(null)
@@ -25,14 +25,22 @@ const DriverChat = () => {
 
   // Redux selectors
   const user_id = useSelector((state) => state.auth.user?.user_id || "")
-  const customer_id = useSelector((state) => state.trip.tripData?.customer_id || "")
-  const trip_id = useSelector((state) => state.trip.tripData || "")
+  const { trip_id, customer_id } = route.params || {};
+
+  useEffect(() => {
+    console.log("DriverChat trip_id:", trip_id);
+    console.log("DriverChat customer_id:", customer_id);
+  }, [trip_id, customer_id]);
+
   const message = useSelector((state) => state.message.message || [])
 // console.log('customer_id', customer_id);
 
   // State for messages and input text
   const [messages, setMessages] = useState([])
   const [messageText, setMessageText] = useState("")
+
+
+
 
   // Effect to handle incoming messages from Redux - FIXED to prevent infinite loop
   useEffect(() => {
@@ -70,7 +78,7 @@ const DriverChat = () => {
   // Function to send a new chat message
   const sendMessage = async () => {
     if (!messageText.trim()) return
-
+  
     const newMessage = {
       id: Date.now().toString(),
       senderId: user_id,
@@ -79,12 +87,14 @@ const DriverChat = () => {
       message: messageText.trim(),
       timestamp: new Date().toISOString(),
     }
-
+  
     try {
       // Add to local state first
       setMessages(prevMessages => [...prevMessages, newMessage])
-      // console.log("New message added to local state:", newMessage);
-      
+  
+      // ✅ Console log to check the message being sent
+      console.log("Sending message from DriverChat:", newMessage)
+  
       // Then emit the message
       emitChatMessage(newMessage)
       setMessageText("")
@@ -92,6 +102,7 @@ const DriverChat = () => {
       console.error("Error sending message:", error)
     }
   }
+  
 
   // Effect to handle socket connections and listeners - FIXED to prevent multiple listeners
   useEffect(() => {

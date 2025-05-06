@@ -77,7 +77,7 @@ export const listenToNewTripRequests = (callback) => {
   // console.log("✅ Listening for 'newTripNotification' event");
 
   socket.on("newTripNotification", (tripData) => {
-    console.log("📢 New trip request received on frontend:", tripData);
+    // console.log("📢 New trip request received on frontend:", tripData);
 
     if (!tripData) {
       console.error("❌ Received tripData is null or undefined");

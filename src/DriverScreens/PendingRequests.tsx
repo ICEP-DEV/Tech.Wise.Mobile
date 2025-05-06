@@ -54,8 +54,19 @@ export default function PendingRequests({ navigation, route }) {
   // const tripAccepted = route.params?.tripAccepted
   //from TrpRequestModal
   const tripData = route.params?.tripData
-  // is from socket
+  useEffect(() => {
+    if (tripData) {
+      console.log("✅ tripId:", tripData.id); // 'id' is tripId
+      console.log("✅ customerId:", tripData.customerId);
+    } else {
+      console.log("❌ tripData is undefined");
+    }
+  }, []);
+  
+  // console.log("Received tripData from route params:", tripData)
+  
   const [tripRequestSocket, setTripRequest] = useState(tripData)
+  // const tripRequestSocket = useSelector((state) => state.trip.tripData)  
 
   const [eta, setEta] = useState("N/A")
   const [distance, setDistance] = useState("N/A")
@@ -63,8 +74,11 @@ export default function PendingRequests({ navigation, route }) {
   const [showEndButton, setShowEndButton] = useState(false)
   const [distanceTraveld, setDistanceTraveld] = useState("N/A")
   const [messages, setMessages] = useState([])
-  // console.log("Trip distance:dddddddddddddd", tripRequestSocket);
 
+
+
+
+  // console.log("Trip ID from Redux:", trip_id);
   // Timer state and ref
   const [secondsOnline, setSecondsOnline] = useState(0)
   // const timerRef = useRef(null)
@@ -111,24 +125,7 @@ export default function PendingRequests({ navigation, route }) {
     }
   };
 
-  // const handleGoOffline = () => {
-  //   clearInterval(timer); // <- clear the countdown interval
-  //   let newState = "offline"
-  //   axios.post(`/driver/endSession/${user_id}`)
-  //     .then(() => navigation.navigate("DriverStats", {
-  //       workedSeconds: secondsOnline,
-  //       state: newState
-  //     }))
-  //     .catch(err => console.error(err));
-  // };
-
-  // const stopTimer = () => {
-  //   if (timerRef.current) {
-  //     clearInterval(timerRef.current)
-  //     timerRef.current = null
-  //     setIsTimerRunning(false)
-  //   }
-  // }
+ 
 
   //go online button and offline button
   const handleGoOffline = async () => {
@@ -243,7 +240,6 @@ export default function PendingRequests({ navigation, route }) {
     // console.log(`🚗 Joining room with userId: ${user_id} and userType: ${userType}`);
 
     listenToNewTripRequests((tripData) => {
-      // console.log("📢 New trip request received on frontend:", tripData?.tripData?.id);
 
       if (!tripData) {
         console.error("❌ tripData is undefined or null on frontend!")
@@ -252,6 +248,7 @@ export default function PendingRequests({ navigation, route }) {
 
       // Show an alert
       alert(`New Trip Request Received!`)
+      console.log("Trip id:]]]]]]]]]]chat  ", tripRequestSocket.id);
 
       // Increment notification count
       setNotificationCount((prevCount) => prevCount + 1)
@@ -259,8 +256,6 @@ export default function PendingRequests({ navigation, route }) {
       // Store the trip data (optional)
       setTripRequest(tripData)
       // Dispatch user details to Redux
-      // console.log("Trip customerId:", tripData?.tripId);
-
       dispatch(
         setTripData({
           id: tripRequestSocket.id,
@@ -736,17 +731,23 @@ export default function PendingRequests({ navigation, route }) {
       </Animated.View>
       {/* Action Buttons */}
       <View style={styles.actionButtonsContainer}>
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={() => navigation.navigate("CustomerCommunicationBottomSheet")}
-        >
-          <Icon type="material-community" name="phone" color="#FFFFFF" size={24} />
-          {notificationCountChat > 0 && (
-            <View style={styles.notificationBadge}>
-              <Text style={styles.notificationText}>{notificationCountChat}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
+      <TouchableOpacity
+  style={styles.actionButton}
+  onPress={() =>
+    navigation.navigate("CustomerCommunicationBottomSheet", {
+      tripId: tripData.id,
+      customerId: tripData.customerId,
+    })
+  }
+>
+  <Icon type="material-community" name="phone" color="#FFFFFF" size={24} />
+  {notificationCountChat > 0 && (
+    <View style={styles.notificationBadge}>
+      <Text style={styles.notificationText}>{notificationCountChat}</Text>
+    </View>
+  )}
+</TouchableOpacity>
+
         <Animated.View style={[{ transform: [{ scale: bellAnimation }] }]}>
           <TouchableOpacity style={styles.actionButton} onPress={handleNotificationClick}>
             <Icon type="material-community" name="bell" color="#FFFFFF" size={24} />
