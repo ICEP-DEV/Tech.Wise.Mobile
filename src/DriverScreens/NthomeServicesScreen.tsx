@@ -16,6 +16,7 @@ import { LinearGradient } from "expo-linear-gradient"
 import { Ionicons } from "@expo/vector-icons"
 import CustomDrawer from "../components/CustomDrawer"
 import { Icon } from "react-native-elements"
+import HelicopterQuoteForm from "./HelicopterQuoteForm"
 
 const { width, height } = Dimensions.get("window")
 
@@ -98,12 +99,9 @@ const NthomeServicesScreen = ({ navigation }) => {
   }
 
   const handleAirPress = () => {
-    Alert.alert(
-      "Coming Soon",
-      "NthomeAir service will be available soon!",
-      [{ text: "OK", onPress: () => console.log("OK Pressed") }]
-    )
+    navigation.navigate('HelicopterQuoteForm')
   }
+  
 
   const handleFoodPress = () => {
     Alert.alert(
@@ -178,13 +176,14 @@ const NthomeServicesScreen = ({ navigation }) => {
               onPress={handleRidesPress}
               index={0}
             />
-            <ServiceCard 
-              title="NthomeAir" 
-              description="Elevate your travel experience with premium air travel." 
-              isComingSoon={true}
-              onPress={handleAirPress}
-              index={1}
-            />
+        <ServiceCard 
+  title="NthomeAir" 
+  description="Elevate your travel experience with premium air travel." 
+  isComingSoon={false}
+  onPress={handleAirPress}
+  index={1}
+/>
+
             <ServiceCard
               title="NthomeFood"
               description="Delicious meals, delivered to your doorstep in minutes."

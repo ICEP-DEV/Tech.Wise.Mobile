@@ -51,7 +51,8 @@ import DriverChat from "../DriverScreens/DriverChat";
 import SuccessPage from "../components/SuccessPage ";
 import SubaccountDetailsScreen from "../DriverScreens/SubaccountDetailsScreen ";
 import UpdateAccount from "../DriverScreens/UpdateAccount";
-
+import RateAppScreen from "../DriverScreens/RateAppScreen";
+import HelicopterQuoteForm from "../DriverScreens/HelicopterQuoteForm";
 const Stack = createNativeStackNavigator(); // Renaming to `Stack` for better clarity
 const Drawer = createDrawerNavigator(); // Create DrawerNavigator
 const Tab = createBottomTabNavigator(); // Create BottomTabNavigator
@@ -388,6 +389,11 @@ export default function RootNavigator() {
           component={SignUpScreen}
           options={{ headerShown: false }}
         />
+           <Stack.Screen
+          name="RateAppScreen"
+          component={RateAppScreen}
+          options={{ headerShown: false }}
+        />
         <Stack.Screen
           name="ForgotPasswordScreen"
           component={ForgotPasswordScreen}
@@ -396,6 +402,12 @@ export default function RootNavigator() {
         <Stack.Screen
           name="ProtectedScreen"
           component={ProtectedScreen}
+          options={{ headerShown: false }}
+        />
+            <Stack.Screen
+          name="HelicopterQuoteForm"
+          component={HelicopterQuoteForm}
+
           options={{ headerShown: false }}
         />
         <Stack.Screen
