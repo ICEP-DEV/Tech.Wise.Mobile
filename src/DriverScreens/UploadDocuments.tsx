@@ -144,7 +144,7 @@ const UploadDocuments = ({ navigation }) => {
       Alert.alert(
         "Success", 
         "Documents uploaded and data saved successfully!",
-        [{ text: "Continue", onPress: () => navigation.navigate("DriverStats") }]
+        [{ text: "Continue", onPress: () => navigation.navigate("ViewDocuments",{documentURLs}) }]
       );
     } catch (error) {
       console.error("MySQL save error:", error);

@@ -53,6 +53,7 @@ import SubaccountDetailsScreen from "../DriverScreens/SubaccountDetailsScreen ";
 import UpdateAccount from "../DriverScreens/UpdateAccount";
 import RateAppScreen from "../DriverScreens/RateAppScreen";
 import HelicopterQuoteForm from "../DriverScreens/HelicopterQuoteForm";
+import ViewDocuments from "../DriverScreens/ViewDocuments";
 const Stack = createNativeStackNavigator(); // Renaming to `Stack` for better clarity
 const Drawer = createDrawerNavigator(); // Create DrawerNavigator
 const Tab = createBottomTabNavigator(); // Create BottomTabNavigator
@@ -440,6 +441,13 @@ export default function RootNavigator() {
         <Stack.Screen
           name="My Profile"
           component={DriverProfile}
+
+          options={{ headerShown: false }}
+        />
+           <Stack.Screen
+          name="ViewDocuments"
+          component={ViewDocuments}
+  
 
           options={{ headerShown: false }}
         />

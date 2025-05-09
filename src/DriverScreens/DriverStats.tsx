@@ -155,16 +155,16 @@ const DriverStats = ({ navigation, route }) => {
   // driver stats functions (start)
   // -------------------------------------------------------
   const [stats, setStats] = useState({
-    daily: { ridesAccepted: 0, ridesDeclined: 0, earnings: "R0", ratings: "N/A", total_trips: 0 },
-    weekly: { ridesAccepted: 0, ridesDeclined: 0, earnings: "R0", ratings: "N/A", total_trips: 0 },
-    monthly: { ridesAccepted: 0, ridesDeclined: 0, earnings: "R0", ratings: "N/A", total_trips: 0 },
+    daily: { ridesAccepted: 0, ridesDeclined: 0, earnings: "R0", ratings: "4.5", total_trips: 0 },
+    weekly: { ridesAccepted: 0, ridesDeclined: 0, earnings: "R0", ratings: "4.5", total_trips: 0 },
+    monthly: { ridesAccepted: 0, ridesDeclined: 0, earnings: "R0", ratings: "3.5", total_trips: 0 },
   })
 
   // Store previous stats for trend calculation
   const [previousStats, setPreviousStats] = useState({
-    daily: { ridesAccepted: 0, ridesDeclined: 0, earnings: "R0", ratings: "N/A", total_trips: 0 },
-    weekly: { ridesAccepted: 0, ridesDeclined: 0, earnings: "R0", ratings: "N/A", total_trips: 0 },
-    monthly: { ridesAccepted: 0, ridesDeclined: 0, earnings: "R0", ratings: "N/A", total_trips: 0 },
+    daily: { ridesAccepted: 0, ridesDeclined: 0, earnings: "R0", ratings: "4.5", total_trips: 0 },
+    weekly: { ridesAccepted: 0, ridesDeclined: 0, earnings: "R0", ratings: "2.5", total_trips: 0 },
+    monthly: { ridesAccepted: 0, ridesDeclined: 0, earnings: "R0", ratings: "4.5", total_trips: 0 },
   })
 
   // Fetch driver stats from the API and update them on dashboard
@@ -225,7 +225,7 @@ const DriverStats = ({ navigation, route }) => {
             .reduce((sum, trip) => sum + Number.parseFloat(trip.amount || 0), 0)
           const ratings = trips.filter((trip) => trip.driver_ratings !== null).map((trip) => trip.driver_ratings)
           const avgRating =
-            ratings.length > 0 ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1) : "N/A"
+            ratings.length > 0 ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1) : "4.5"
 
           return {
             ridesAccepted,
