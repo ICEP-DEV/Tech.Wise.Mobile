@@ -8,27 +8,30 @@ import { darkMapStyle } from "../global/mapStyle"
 import { GOOGLE_MAPS_APIKEY } from "@env"
 import { Icon } from "react-native-elements"
 
-// Define theme colors
 const THEME = {
   background: "#121212",
   card: "#1E1E1E",
-  primary: "#00D8F0", // Bright cyan
+  primary: "#00D8F0",
+  secondary: "#FF6B6B", // Added a secondary color for destination marker
   text: {
     primary: "#FFFFFF",
     secondary: "#AAAAAA",
   },
 }
 
-const MapComponent = ({ userOrigin, userDestination, driverLocation }) => {
-  const mapRef = useRef(null)
+// Update the MapComponent to receive and forward the ref
+const MapComponent = ({ userOrigin, userDestination, driverLocation, tripStart, mapRef }) => {
+  // Remove the local mapRef declaration since we're now receiving it as a prop
+  // const mapRef = useRef(null)
   const [mapBearing, setMapBearing] = useState(0)
   const [instructions, setInstructions] = useState([])
   const [currentStep, setCurrentStep] = useState(0)
   const [distance, setDistance] = useState(null)
   const [duration, setDuration] = useState(null)
   const rotateAnimatedValue = useRef(new Animated.Value(0)).current
+  const [tripStarted, setTripStarted] = useState(tripStart)
+  const [showDestination, setShowDestination] = useState(false)
 
-  // Start rotation animation for driver marker
   useEffect(() => {
     Animated.loop(
       Animated.timing(rotateAnimatedValue, {
@@ -40,11 +43,34 @@ const MapComponent = ({ userOrigin, userDestination, driverLocation }) => {
     ).start()
   }, [])
 
+  // Set showDestination to true when tripStarted changes to true
+  useEffect(() => {
+    setTripStarted(tripStart)
+    if (tripStart) {
+      setShowDestination(true)
+    } else {
+      // Reset map when trip ends
+      setShowDestination(false)
+      setDistance(null)
+      setDuration(null)
+      setInstructions([])
+      setCurrentStep(0)
+    }
+  }, [tripStart])
+
+  // Also set showDestination to true when userDestination changes
+  useEffect(() => {
+    if (userDestination?.latitude && userDestination?.longitude) {
+      setShowDestination(true)
+    }
+  }, [userDestination])
+
   useEffect(() => {
     if (userOrigin?.latitude && userDestination?.latitude && driverLocation?.latitude) {
-      const coordinates = [userOrigin, userDestination, driverLocation].filter(
+      const coordinates = [driverLocation, userOrigin, ...(showDestination ? [userDestination] : [])].filter(
         (coord) => coord?.latitude && coord?.longitude,
       )
+
       if (coordinates.length > 0 && mapRef.current) {
         mapRef.current.fitToCoordinates(coordinates, {
           edgePadding: {
@@ -57,7 +83,18 @@ const MapComponent = ({ userOrigin, userDestination, driverLocation }) => {
         })
       }
     }
-  }, [userOrigin, userDestination, driverLocation])
+  }, [userOrigin, userDestination, driverLocation, showDestination])
+
+  // Refocus map when trip starts
+  useEffect(() => {
+    if (tripStart && userOrigin?.latitude && userDestination?.latitude && mapRef.current) {
+      // Include both origin and destination in the view
+      mapRef.current.fitToCoordinates([userOrigin, userDestination], {
+        edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
+        animated: true,
+      })
+    }
+  }, [tripStart])
 
   useEffect(() => {
     if (driverLocation?.latitude && driverLocation?.longitude && mapRef.current) {
@@ -116,7 +153,7 @@ const MapComponent = ({ userOrigin, userDestination, driverLocation }) => {
         showsUserLocation={false}
         followsUserLocation={true}
         customMapStyle={darkMapStyle}
-        showsMyLocationButton={false} // <--- THIS disables the butto
+        showsMyLocationButton={false}
       >
         {driverLocation?.latitude && driverLocation?.longitude && (
           <Marker coordinate={driverLocation} anchor={{ x: 0.5, y: 0.5 }} rotation={mapBearing}>
@@ -144,12 +181,27 @@ const MapComponent = ({ userOrigin, userDestination, driverLocation }) => {
           <Marker coordinate={userOrigin}>
             <View style={styles.originMarker}>
               <Icon type="material-community" name="map-marker" color={THEME.primary} size={30} />
+              <View style={styles.markerLabelContainer}>
+                <Text style={styles.markerLabel}>Pickup</Text>
+              </View>
             </View>
           </Marker>
         )}
 
-        {/* Directions from Driver Location to User Pickup */}
-        {driverLocation?.latitude && userOrigin?.latitude && (
+        {/* Always show destination marker when it exists and showDestination is true */}
+        {userDestination?.latitude && userDestination?.longitude && showDestination && (
+          <Marker coordinate={userDestination}>
+            <View style={styles.destinationMarker}>
+              <Icon type="material-community" name="map-marker" color={THEME.secondary} size={30} />
+              <View style={styles.markerLabelContainer}>
+                <Text style={styles.markerLabel}>Destination</Text>
+              </View>
+            </View>
+          </Marker>
+        )}
+
+        {/* Directions */}
+        {!tripStarted && driverLocation?.latitude && userOrigin?.latitude && (
           <MapViewDirections
             origin={driverLocation}
             destination={userOrigin}
@@ -160,16 +212,30 @@ const MapComponent = ({ userOrigin, userDestination, driverLocation }) => {
             onError={(error) => console.error("Directions Error:", error)}
           />
         )}
+
+        {tripStarted && userOrigin?.latitude && userDestination?.latitude && (
+          <MapViewDirections
+            origin={userOrigin}
+            destination={userDestination}
+            apikey={GOOGLE_MAPS_APIKEY}
+            strokeWidth={4}
+            strokeColor={"#4CAF50"}
+            onReady={(result) => {
+              handleDirectionsReady(result)
+              // Ensure destination is shown when directions are ready
+              setShowDestination(true)
+            }}
+            onError={(error) => console.error("Trip Directions Error:", error)}
+          />
+        )}
       </MapView>
 
-      {/* Trip Details Card */}
       {distance && duration && (
         <View style={styles.tripDetailsCard}>
           <View style={styles.tripDetailsHeader}>
             <Icon type="material-community" name="map-marker-path" color={THEME.primary} size={20} />
             <Text style={styles.tripDetailsTitle}>Trip Details</Text>
           </View>
-
           <View style={styles.tripDetailsContent}>
             <View style={styles.tripDetailSection}>
               <Icon type="material-community" name="map-marker-distance" color={THEME.primary} size={24} />
@@ -178,9 +244,7 @@ const MapComponent = ({ userOrigin, userDestination, driverLocation }) => {
                 <Text style={styles.tripDetailLabel}>Distance</Text>
               </View>
             </View>
-
             <View style={styles.tripDetailDivider} />
-
             <View style={styles.tripDetailSection}>
               <Icon type="material-community" name="clock-outline" color={THEME.primary} size={24} />
               <View style={styles.tripDetailValue}>
@@ -192,13 +256,11 @@ const MapComponent = ({ userOrigin, userDestination, driverLocation }) => {
         </View>
       )}
 
-      {/* Navigation Card */}
       <View style={styles.navigationCard}>
         <View style={styles.navigationHeader}>
           <Icon type="material-community" name="navigation" color={THEME.primary} size={20} />
           <Text style={styles.navigationTitle}>Navigation</Text>
         </View>
-
         <View style={styles.navigationContent}>
           {instructions.length > 0 && currentStep < instructions.length ? (
             <Text style={styles.navigationText}>
@@ -208,7 +270,6 @@ const MapComponent = ({ userOrigin, userDestination, driverLocation }) => {
             <Text style={styles.navigationText}>Head to destination</Text>
           )}
         </View>
-
         <TouchableOpacity style={styles.locationButton} onPress={centerOnCurrentLocation}>
           <Icon type="material-community" name="crosshairs-gps" color="#FFFFFF" size={24} />
         </TouchableOpacity>

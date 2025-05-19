@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { StyleSheet, View, Dimensions, TouchableOpacity, Image, Text, Animated, ActivityIndicator } from "react-native"
+import { StyleSheet, View, Dimensions, TouchableOpacity, Text, Animated } from "react-native"
 import { Icon } from "react-native-elements"
 import { colors } from "../global/styles"
 import MapComponent from "../components/MapComponent"
@@ -25,8 +25,7 @@ import { api } from "../../api"
 import TripCancellationModal from "../components/TripCancelationModal"
 import { setTripData } from "../redux/actions/tripActions"
 import { setMessageData } from "../redux/actions/messageAction"
-import CustomDrawer from "../components/CustomDrawer"
-import { formatTime, formatSecondsToTimeString, MAX_TIME_PER_DAY_SECONDS } from "../utils/timeTracker"
+import { formatTime } from "../utils/timeTracker"
 
 const SCREEN_HEIGHT = Dimensions.get("window").height
 const SCREEN_WIDTH = Dimensions.get("window").width
@@ -43,7 +42,8 @@ const THEME = {
 export default function PendingRequests({ navigation, route }) {
   const dispatch = useDispatch() // Redux dispatch function
   const user = useSelector((state) => state.auth.user)
-  const user_id = user?.user_id || null;
+  const user_id = user?.user_id || null
+  const [tripStarted, setTripStarted] = useState(false)
 
   // const openDrawer = route.params?.openDrawer
   // const state = route.params?.newState
@@ -56,17 +56,17 @@ export default function PendingRequests({ navigation, route }) {
   const tripData = route.params?.tripData
   useEffect(() => {
     if (tripData) {
-      console.log("✅ tripId:", tripData.id); // 'id' is tripId
-      console.log("✅ customerId:", tripData.customerId);
+      console.log("✅ tripId:", tripData.id) // 'id' is tripId
+      console.log("✅ customerId:", tripData.customerId)
     } else {
-      console.log("❌ tripData is undefined");
+      console.log("❌ tripData is undefined")
     }
-  }, []);
-  
+  }, [])
+
   // console.log("Received tripData from route params:", tripData)
-  
+
   const [tripRequestSocket, setTripRequest] = useState(tripData)
-  // const tripRequestSocket = useSelector((state) => state.trip.tripData)  
+  // const tripRequestSocket = useSelector((state) => state.trip.tripData)
 
   const [eta, setEta] = useState("N/A")
   const [distance, setDistance] = useState("N/A")
@@ -75,64 +75,59 @@ export default function PendingRequests({ navigation, route }) {
   const [distanceTraveld, setDistanceTraveld] = useState("N/A")
   const [messages, setMessages] = useState([])
 
-
-
-
   // console.log("Trip ID from Redux:", trip_id);
   // Timer state and ref
   const [secondsOnline, setSecondsOnline] = useState(0)
   // const timerRef = useRef(null)
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true)
 
-  const [remainingTime, setRemainingTime] = useState(0);
+  const [remainingTime, setRemainingTime] = useState(0)
 
   useEffect(() => {
-    axios.get(api + `/driver/remainingTime/${user_id}`)
-      .then(res => {
-        setRemainingTime(res.data.remainingSeconds);
-        startCountdown(res.data.remainingSeconds);
+    axios
+      .get(api + `/driver/remainingTime/${user_id}`)
+      .then((res) => {
+        setRemainingTime(res.data.remainingSeconds)
+        startCountdown(res.data.remainingSeconds)
       })
-      .catch(err => console.error(err, "-----------------"));
-  }, [user_id]);
+      .catch((err) => console.error(err, "-----------------"))
+  }, [user_id])
   // Timer functions
 
   const startCountdown = (initialSeconds) => {
-    let seconds = initialSeconds;
+    let seconds = initialSeconds
     const interval = setInterval(() => {
-      seconds--;
-      setRemainingTime(seconds);
+      seconds--
+      setRemainingTime(seconds)
       if (seconds <= 0) {
-        clearInterval(interval);
-        handleGoOffline();
+        clearInterval(interval)
+        handleGoOffline()
       }
-    }, 1000);
-  };
-  const timerRef = useRef(null); // ref to hold the timer id
+    }, 1000)
+  }
+  const timerRef = useRef(null) // ref to hold the timer id
 
   useEffect(() => {
     timerRef.current = setInterval(() => {
-      setRemainingTime(prev => Math.max(prev - 1, 0));
-    }, 1000);
+      setRemainingTime((prev) => Math.max(prev - 1, 0))
+    }, 1000)
 
-    return () => clearInterval(timerRef.current); // cleanup on unmount
-  }, []);
+    return () => clearInterval(timerRef.current) // cleanup on unmount
+  }, [])
 
   const stopTimer = () => {
     if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null; // optional: clear ref so it can't clear again
-      console.log('Timer stopped');
+      clearInterval(timerRef.current)
+      timerRef.current = null // optional: clear ref so it can't clear again
+      console.log("Timer stopped")
     }
-  };
-
- 
+  }
 
   //go online button and offline button
   const handleGoOffline = async () => {
-
     // clearInterval(timer); // <- clear the countdown interval
     animateButton()
-    const session_id = route.params?.session_id;  // get session_id from navigation params
+    const session_id = route.params?.session_id // get session_id from navigation params
     if (!user_id || !session_id) {
       console.warn("Missing user_id or session_id")
       return
@@ -140,20 +135,20 @@ export default function PendingRequests({ navigation, route }) {
 
     try {
       // Fetch current driver state before updating
-      console.log("Fetching current driver state...");
+      console.log("Fetching current driver state...")
 
       const fetchResponse = await axios.get(`${api}getDriverState?userId=${user_id}`)
       const currentState = fetchResponse.data.state
 
       if (currentState === "online") {
         const newState = "offline"
-        console.log("Driver is online, setting to offline...");
+        console.log("Driver is online, setting to offline...")
 
         const updateResponse = await axios.put(`${api}updateDriverState`, {
           user_id,
           state: newState,
           onlineDuration: secondsOnline,
-          last_online_timestamp: new Date().toISOString()
+          last_online_timestamp: new Date().toISOString(),
         })
 
         if (updateResponse.status === 200) {
@@ -161,10 +156,10 @@ export default function PendingRequests({ navigation, route }) {
 
           // ✅ ADD: Update driver_session end_time by session_id
           try {
-            console.log("Updating driver_session end_time...");
+            console.log("Updating driver_session end_time...")
 
             const sessionUpdateResponse = await axios.put(`${api}endDriverSession`, {
-              session_id,  // pass session_id
+              session_id, // pass session_id
               end_time: new Date().toISOString(),
               workedSeconds: secondsOnline,
             })
@@ -188,18 +183,17 @@ export default function PendingRequests({ navigation, route }) {
             user_id,
             session_id,
             workedSeconds: secondsOnline,
-            state: newState
+            state: newState,
           })
         } else {
           console.warn("Failed to update driver state. Status:", updateResponse.status)
         }
-
       } else {
         // If driver is offline, set them to online
         const updateResponse = await axios.put(`${api}updateDriverState`, {
           user_id,
           state: "online",
-          onlineDuration: 0
+          onlineDuration: 0,
         })
 
         if (updateResponse.status === 200) {
@@ -216,8 +210,6 @@ export default function PendingRequests({ navigation, route }) {
     }
   }
 
-
-
   // Extracting user origin and destination from tripData
   const [userOrigin, setUserOrigin] = useState({
     latitude: tripData?.pickUpCoordinates?.latitude ?? 0,
@@ -229,7 +221,6 @@ export default function PendingRequests({ navigation, route }) {
     longitude: tripData?.dropOffCoordinates?.longitude ?? 0,
   })
 
-
   // socket notifications
   useEffect(() => {
     if (!user_id) return
@@ -237,10 +228,7 @@ export default function PendingRequests({ navigation, route }) {
     const userType = "driver"
     connectSocket(user_id, userType) // Ensure the driver is connected
 
-    // console.log(`🚗 Joining room with userId: ${user_id} and userType: ${userType}`);
-
     listenToNewTripRequests((tripData) => {
-
       if (!tripData) {
         console.error("❌ tripData is undefined or null on frontend!")
         return
@@ -248,41 +236,39 @@ export default function PendingRequests({ navigation, route }) {
 
       // Show an alert
       alert(`New Trip Request Received!`)
-      console.log("Trip id:]]]]]]]]]]chat  ", tripRequestSocket.id);
+      console.log("Trip request received:", tripData)
 
-      // Increment notification count
-      setNotificationCount((prevCount) => prevCount + 1)
+      // Increment notification count - ensure this runs
+      setNotificationCount((prevCount) => {
+        console.log("Incrementing notification count from", prevCount, "to", prevCount + 1)
+        return prevCount + 1
+      })
 
-      // Store the trip data (optional)
+      // Store the trip data
       setTripRequest(tripData)
+
       // Dispatch user details to Redux
       dispatch(
         setTripData({
-          id: tripRequestSocket.id,
-          customer_id: tripData?.tripData?.customerId,
+          id: tripData.id, // Make sure we're using the correct property
+          customer_id: tripData.customerId,
         }),
       )
     })
 
     listenCancelTrip((tripData) => {
-      // console.log("trip cancelation received on frontend:", tripData);
       setUserOrigin({ latitude: null, longitude: null })
     })
 
     listenToChatMessages((messageData) => {
       // Increment notification count
       setNotificationCountChat((prevCount) => prevCount + 1)
-      // setMessages((prevMessages) => [...prevMessages, messageData]);
       dispatch(
         setMessageData({
           message: messageData.message,
         }),
       )
     })
-
-    // return () => {
-    //   stopListeningToNewTripRequests(); // Clean up on unmount
-    // };
   }, [user_id])
 
   //setting user origin and destination from socket
@@ -308,7 +294,7 @@ export default function PendingRequests({ navigation, route }) {
   })
   //driver location
   useEffect(() => {
-    ; (async () => {
+    ;(async () => {
       const { status } = await Location.requestForegroundPermissionsAsync()
       if (status !== "granted") {
         console.error("Permission to access location was denied")
@@ -383,7 +369,6 @@ export default function PendingRequests({ navigation, route }) {
   const [cancelModalVisible, setCancelModalVisible] = useState(false)
   const [cancelReason, setCancelReason] = useState("")
   const [tripStatusAccepted, setTripStatusAccepted] = useState(null)
-
 
   const handleCancelTrip = () => {
     setCancelModalVisible(true) // Show cancellation modal
@@ -507,7 +492,6 @@ export default function PendingRequests({ navigation, route }) {
         } else {
           setIsOnline(false)
           stopTimer() // Stop the timer if driver is offline
-
         }
       } catch (error) {
         console.error("Error fetching driver state:", error.message)
@@ -622,7 +606,7 @@ export default function PendingRequests({ navigation, route }) {
       setDistanceTraveld(`${(distanceInMeters / 1000).toFixed(2)} km`)
 
       // Show End button if driver is within 50cm (0.5m) of destination
-      setShowEndButton(distanceInMeters <= 50)
+      setShowEndButton(distanceInMeters <= 50000)
     }
 
     fetchRouteDetails()
@@ -643,25 +627,27 @@ export default function PendingRequests({ navigation, route }) {
           cancel_by: null,
           distance_traveled: distance,
         }),
-      });
+      })
 
-      if (!response.ok) throw new Error("Error updating trip status");
+      if (!response.ok) throw new Error("Error updating trip status")
 
       // 2️⃣ Update payment status to success
       const paymentResponse = await fetch(`${api}payments/user/${tripData.customerId}/trip/${tripData.id}/status`, {
         method: "PUT",
-      });
+      })
 
-      if (!paymentResponse.ok) throw new Error("Error updating payment status");
+      if (!paymentResponse.ok) throw new Error("Error updating payment status")
 
-      console.log("Payment status updated to success");
+      console.log("Payment status updated to success")
 
       // 3️⃣ Alert customer
-      emitStartTrip(tripData.id, tripData.customerId);
+      emitStartTrip(tripData.id, tripData.customerId)
+      setTripStarted(true) // Set tripStarted to true
+      console.log("Trip successfully started.", tripStarted)
     } catch (error) {
-      console.error("Error starting trip:", error);
+      console.error("Error starting trip:", error)
     }
-  };
+  }
 
   //update trip and notify customer when driver clicks end trip
   const handleEndRide = async () => {
@@ -689,7 +675,28 @@ export default function PendingRequests({ navigation, route }) {
       // Notify customer that the trip has ended
       emitEndTrip(tripData.id, tripData.customerId)
 
-      console.log("Trip successfully ended.")
+      // Clear everything on both screens
+      setTripStarted(false)
+      setUserOrigin({ latitude: null, longitude: null })
+      setUserDestination({ latitude: null, longitude: null })
+      setShowStartButton(false)
+      setShowEndButton(false)
+      setEta("N/A")
+      setDistance("N/A")
+      setDistanceTraveld("N/A")
+      setTripRequest(null)
+
+      // Recenter the map on driver's current location
+      if (mapRef && mapRef.current) {
+        mapRef.current.animateToRegion({
+          latitude: driverLocation.latitude,
+          longitude: driverLocation.longitude,
+          latitudeDelta: 0.005,
+          longitudeDelta: 0.005,
+        })
+      }
+
+      console.log("Trip successfully ended and screens cleared.")
     } catch (error) {
       console.error("Error ending trip:", error)
     }
@@ -703,6 +710,8 @@ export default function PendingRequests({ navigation, route }) {
   //     </View>
   //   );
   // }
+  // Add a mapRef to access the map from MapComponent
+  const mapRef = useRef(null)
 
   return (
     <SafeAreaView style={styles.container}>
@@ -715,8 +724,14 @@ export default function PendingRequests({ navigation, route }) {
             <View style={{ width: 40 }} />
           </View> */}
 
-
-      <MapComponent driverLocation={driverLocation} userOrigin={userOrigin} userDestination={userDestination} />
+      {/* Update the MapComponent to pass the ref */}
+      <MapComponent
+        driverLocation={driverLocation}
+        userOrigin={userOrigin}
+        userDestination={userDestination}
+        tripStart={tripStarted}
+        mapRef={mapRef}
+      />
 
       {/* Timer display */}
       <View style={styles.timerContainer}>
@@ -731,22 +746,22 @@ export default function PendingRequests({ navigation, route }) {
       </Animated.View>
       {/* Action Buttons */}
       <View style={styles.actionButtonsContainer}>
-      <TouchableOpacity
-  style={styles.actionButton}
-  onPress={() =>
-    navigation.navigate("CustomerCommunicationBottomSheet", {
-      tripId: tripData.id,
-      customerId: tripData.customerId,
-    })
-  }
->
-  <Icon type="material-community" name="phone" color="#FFFFFF" size={24} />
-  {notificationCountChat > 0 && (
-    <View style={styles.notificationBadge}>
-      <Text style={styles.notificationText}>{notificationCountChat}</Text>
-    </View>
-  )}
-</TouchableOpacity>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={() =>
+            navigation.navigate("CustomerCommunicationBottomSheet", {
+              tripId: tripData.id,
+              customerId: tripData.customerId,
+            })
+          }
+        >
+          <Icon type="material-community" name="phone" color="#FFFFFF" size={24} />
+          {notificationCountChat > 0 && (
+            <View style={styles.notificationBadge}>
+              <Text style={styles.notificationText}>{notificationCountChat}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
 
         <Animated.View style={[{ transform: [{ scale: bellAnimation }] }]}>
           <TouchableOpacity style={styles.actionButton} onPress={handleNotificationClick}>
@@ -781,7 +796,6 @@ export default function PendingRequests({ navigation, route }) {
       {/* Trip Cancellation Modal */}
       <TripCancellationModal isVisible={cancelModalVisible} onClose={handleCloseModal} onCancel={handleCancel} />
       {/* <CustomDrawer isOpen={drawerOpen} toggleDrawer={toggleDrawer} navigation={navigation} /> */}
-
     </SafeAreaView>
   )
 }
@@ -986,8 +1000,8 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontWeight: "bold",
+    color: "#fff",
     left: 10,
   },
   infoContainer: {

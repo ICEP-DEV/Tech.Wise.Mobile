@@ -100,6 +100,7 @@ const TripRequestModal = ({ isVisible, request, onClose, onTripUpdate }) => {
           status: 'accepted',
           cancellation_reason: null,
           cancel_by: null,
+   
         }),
       });
 
