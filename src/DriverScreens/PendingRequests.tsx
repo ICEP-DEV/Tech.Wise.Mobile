@@ -128,7 +128,7 @@ export default function PendingRequests({ navigation, route }) {
     // clearInterval(timer); // <- clear the countdown interval
     animateButton()
     const session_id = route.params?.session_id // get session_id from navigation params
-    if (!user_id || !session_id) {
+    if (!user_id ) {
       console.warn("Missing user_id or session_id")
       return
     }
